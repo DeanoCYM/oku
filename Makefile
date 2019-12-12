@@ -1,13 +1,16 @@
 LOGLEVEL?=2 
 REMOTE?=pi@pi:~/oku/
 
+SPI_BACKEND?=wp
+DEVICE?=ws29bw
+
 CC=cc
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) -I./src
 
 LIBS=-lwiringPi
 
 TARGET=oku_test
-OBJ=spi_wp.o epd_ws29bw.o epd_bitmap.o
+OBJ=spi_{SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o
 
 .PHONY: all clean tags test sync
 

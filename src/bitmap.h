@@ -1,4 +1,4 @@
-/* epd_bitmap.h
+/* bitmap.h
  * 
  * This file is part of oku.
  *
@@ -29,12 +29,12 @@
 
 /* Description:
 
-   Electronic paper bitmap buffer manipulation routines.
+   Electronic paper display bitmap buffer control.
 
 */
 
-#ifndef EPD_BITMAP_H
-#define EPD_BITMAP_H
+#ifndef BITMAP_H
+#define BITMAP_H
 
 #include <sys/types.h>
 
@@ -58,4 +58,4 @@ int bitmap_px_toggle(uint16_t x, uint16_t y);
 int bitmap_px_black(uint16_t x, uint16_t y);
 int bitmap_px_white(uint16_t x, uint16_t y);
 
-#endif	/* EPD_BITMAP_H */
+#endif	/* BITMAP_H */

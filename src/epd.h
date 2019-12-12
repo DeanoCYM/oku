@@ -1,4 +1,4 @@
-/* epd.c
+/* epd.h
  * 
  * This file is part of oku.
  *

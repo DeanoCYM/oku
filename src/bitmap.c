@@ -1,4 +1,4 @@
-/* epd_bitmap.c
+/* bitmap.c
  * 
  * This file is part of oku.
  *
@@ -29,7 +29,7 @@
 
 /* Description:
 
-   Electronic paper bitmap buffer manipulation routines.
+   Electronic paper display bitmap buffer control.
 
 */
 
@@ -39,8 +39,8 @@
 #include <errno.h>
 #include <ert_log.h>
 
-#include "epd_bitmap.h"
-#include "epd_ws29bw.h"
+#include "bitmap.h"
+#include "epd.h"
 
 
 static uint8_t *bitmap = NULL;	/* Bitmap buffer */
