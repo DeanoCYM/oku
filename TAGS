@@ -1,0 +1,111 @@
+
+src/epd_bitmap.c,300
+static uint8_t *bitmap bitmap46,1440
+bitmap_create(63,1885
+bitmap_destroy(76,2182
+bitmap_px_toggle(85,2366
+bitmap_px_black(101,2706
+bitmap_px_white(118,3090
+display_area(140,3577
+alloc_bitmap(159,4072
+free_bitmap(176,4391
+byte_offset(193,4727
+bit_number(205,5033
+invalid_bitmap(215,5328
+
+src/epd_ws29bw.c,1778
+#define DEVICE 49,1458
+#define WIDTH 50,1493
+#define HEIGHT 51,1539
+#define SPI_CHANNEL 52,1585
+#define SPI_CLK_HZ 53,1635
+#define RESET_DELAY 54,1685
+#define BUSY_DELAY 55,1746
+#define ARRSIZE(58,1851
+enum PIN 61,1923
+enum PIN { PIN_RST 61,1923
+enum PIN { PIN_RST  = 17, PIN_DC 61,1923
+	   PIN_CS 62,1964
+	   PIN_CS   =  8, PIN_BUSY 62,1964
+enum GPIO_LEVEL 65,2027
+enum GPIO_LEVEL {GPIO_LEVEL_LOW,GPIO_LEVEL_LOW65,2027
+enum GPIO_LEVEL {GPIO_LEVEL_LOW, GPIO_LEVEL_HIGH}GPIO_LEVEL_HIGH65,2027
+enum COMMAND68,2104
+    { DRIVER_OUTPUT_CONTROL 69,2117
+      BOOSTER_SOFT_START_CONTROL 70,2170
+      GATE_SCAN_START_POSITION 71,2223
+      DEEP_SLEEP_MODE 72,2276
+      DATA_ENTRY_MODE_SETTING 73,2329
+      SW_RESET 74,2382
+      TEMPERATURE_SENSOR_CONTROL 75,2435
+      MASTER_ACTIVATION 76,2488
+      DISPLAY_UPDATE_CONTROL_1 77,2541
+      DISPLAY_UPDATE_CONTROL_2 78,2594
+      WRITE_RAM 79,2647
+      WRITE_VCOM_REGISTER 80,2700
+      WRITE_LUT_REGISTER 81,2753
+      SET_DUMMY_LINE_PERIOD 82,2806
+      SET_GATE_TIME 83,2859
+      BORDER_WAVEFORM_CONTROL 84,2912
+      SET_RAM_X_ADDRESS_START_END_POSITION 85,2965
+      SET_RAM_Y_ADDRESS_START_END_POSITION 86,3018
+      SET_RAM_X_ADDRESS_COUNTER 87,3071
+      SET_RAM_Y_ADDRESS_COUNTER 88,3124
+      TERMINATE_FRAME_READ_WRITE 89,3177
+const uint8_t lut_full_update[lut_full_update92,3286
+epd_initialise(127,4562
+epd_reset(154,5317
+epd_sleep(172,5757
+epd_bitmap_display(197,6294
+epd_get_width(228,7154
+epd_get_height(235,7261
+init_gpio(245,7474
+init_spi(266,7980
+write_command(284,8368
+write_data(310,8986
+push_shift_register(332,9492
+push_lut(371,11055
+wait_while_busy(388,11538
+ram_set_window(416,12159
+ram_set_cursor(448,13392
+ram_write(479,14487
+ram_load(498,14985
+
+src/main.c,242
+#define PI_CHANNEL 4,48
+#define SPI_CLK_HZ 5,97
+enum BCM_EPD_PINS9,244
+    { RST_PIN 10,262
+    { RST_PIN  = 17, DC_PIN 10,262
+      CS_PIN 11,298
+      CS_PIN   =  8, BUSY_PIN 11,298
+    wiringPiSPISetup(21,504
+firmware_load(25,566
+
+src/spi_wp.c,209
+#define BACKEND 36,1025
+static int spi_fid 40,1137
+spi_init_gpio(49,1326
+spi_gpio_pinmode(79,2105
+spi_open(91,2393
+spi_gpio_write(110,2833
+spi_gpio_read(124,3140
+spi_write(134,3314
+spi_delay(157,3811
+
+src/epd_bitmap.h,29
+#define EPD_BITMAP_H37,1307
+
+src/epd_ws29bw.h,126
+#define EPD_H38,1329
+enum PIXEL_COLOUR 44,1441
+enum PIXEL_COLOUR { BLACK,44,1441
+enum PIXEL_COLOUR { BLACK, WHITE 44,1441
+
+src/spi_wp.h,178
+#define SPI_H50,1740
+enum SPI_PINMODE57,1822
+    { SPI_PINMODE_INPUT 58,1839
+      SPI_PINMODE_OUTPUT 59,1873
+      SPI_PINMODE_PWM 60,1908
+      SPI_PINMODE_CLOCK 61,1947
