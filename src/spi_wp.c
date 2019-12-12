@@ -19,12 +19,13 @@
  * 
  * Description:
  *
- * Wrapper around wiringPI package (see http://wiringpi.com). Provides
- * SPI communication between GPIO and electronic paper display.
+ * Wrapper around wiringPI package (http://wiringpi.com) implementing
+ * spi.h interface. Provides SPI and GPIO communication between and
+ * electronic paper display and controller.
  *
  */
 
-#include "spi_wp.h"
+#include "spi.h"
 
 #include <unistd.h>
 #include <stdint.h>

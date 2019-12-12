@@ -1,4 +1,4 @@
-/* spi_wp.h
+/* spi.h
  * 
  * This file is part of oku.
  *
@@ -29,20 +29,8 @@
 
 /* Description:
  *
- * Wrapper around wiringPI package (see http://wiringpi.com) to
- * provides SPI communication between electronic paper display.
- * 
- */
-
-/* Typical Usage:
- *
- * 1. Compile with -llwiringPi
- * 2. Load the spi drivers into linux (i.e. gpio load spi)
- * 3. Initialise GPIO with spi_init_gpio().
- * 4. Set each pin to correct mode with spi_gpio_pinmode();
- * 5. Start SPI communication with spi_open();
- * 7. Manipulate appropriate GPIO pins with spi_gpio_write();
- * 6. Write data with spi_write();
+ * Interface for SPI and GPIO communication between display device and
+ * controller.
  * 
  */
 

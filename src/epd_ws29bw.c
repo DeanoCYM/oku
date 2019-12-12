@@ -29,17 +29,12 @@
 
 /* Description:
  
-   Communication with waveshare 9.2" black and white e paper display
-   module.
- */
-
-/* TODO:
- 
-
+   Implementation of epd.h for waveshare 9.2" black and white
+   electronic paper display module.
  */
 
 #include "epd.h"
-#include "spi_wp.h"
+#include "spi.h"
 
 #include <ert_log.h>
 #include <errno.h>
