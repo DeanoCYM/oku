@@ -29,7 +29,19 @@
 
 /* Description:
 
-   Electronic paper display bitmap buffer control.
+   Electronic paper display bitmap buffer control. The buffer is
+   designed to correspond to the portable bitmap format (PBM):
+
+   Each row contains the same number of bits, packed 8 to a byte,
+   don't care bits to fill out the last byte in the row if the width
+   is not a factor of 8.
+
+   Each bit represents a pixel: 1 is black, 0 is white.
+
+   The order of the pixels is left to right. The order of their
+   storage within each file byte is most significant bit to least
+   significant bit. The order of the file bytes is from the beginning
+   of the file toward the end of the file.
 
 */
 
@@ -283,10 +295,6 @@ byte_at_index(uint16_t x, uint16_t y)
    Returns: Bit mask for pixel at given x coordinate. */
 static uint8_t
 bit_number(uint16_t x) { 
-
-    /* Least significant bit stores pixel data
-       closest to origin */
-    //return 0x01 << (x % 8);
 
     /* Most significant bit stores pixel data closest to origin */
     return 0x01 << ( 7 - (x % 8) ); 

@@ -47,7 +47,7 @@
 #define SPI_CHANNEL 0		/* SPI Channel (0 or 1) */
 #define SPI_CLK_HZ 32000000	/* SPI clock speed */
 #define RESET_DELAY 200		/* GPIO reset pin hold time (ms) */
-#define BUSY_DELAY 100		/* GPIO reset pin hold time (ms) */
+#define BUSY_DELAY 300		/* GPIO reset pin hold time (ms) */
 
 /* Determines array length (stack only!) */
 #define ARRSIZE(X) (sizeof(X)/sizeof(X[0]))
@@ -84,7 +84,7 @@ enum COMMAND
       TERMINATE_FRAME_READ_WRITE             = 0xFF };
 
 /* 30B Look up table (LUT) for full screen update */
-const uint8_t lut_full_update[] =
+uint8_t lut_full_update[] =
     { 0x02, 0x02, 0x01, 0x11, 0x12, 0x12, 0x22, 0x22,
       0x66, 0x69, 0x69, 0x59, 0x58, 0x99, 0x99, 0x88,
       0x00, 0x00, 0x00, 0x00, 0xF8, 0xB4, 0x13, 0x51,
@@ -101,14 +101,14 @@ const uint8_t lut_full_update[] =
 static int init_gpio(void);
 static int init_spi(void);
 static int write_command(enum COMMAND command);
-static int write_data(const uint8_t *data, size_t len);
+static int write_data(uint8_t *data, size_t len);
 static int push_shift_register(void);
-static int push_lut(const uint8_t *lut);
+static int push_lut(uint8_t *lut);
 static int wait_while_busy(void);
 static int ram_set_window(uint16_t xmin, uint16_t xmax,
 			  uint16_t ymin, uint16_t ymax);
 static int ram_set_cursor(uint16_t x, uint16_t y);
-static int ram_write(uint8_t *bitmap, size_t len);
+static int ram_write(uint8_t *bitmap);
 static int ram_load(void);
 
 /*** Interface Functions  ***/
@@ -116,8 +116,9 @@ static int ram_load(void);
 /* Fully initialises device, starting SPI communications and setting
    the appropriate pins to the correct modes.
 
-   Returns: 0  Success.
-            1  Fail, errno set to ECOMM */
+   Returns:
+   0  Success.
+   1  Fail, errno set to ECOMM */
 int
 epd_on(void)
 {
@@ -134,7 +135,6 @@ epd_on(void)
     /* RAM to hold full bitmap, representing pixels from orign to
        maximum dimensions */
     ram_set_window(0, WIDTH, 0, HEIGHT);
-    // Do I need to write a bitmap to ram here????
 
     return 0;
 
@@ -142,6 +142,41 @@ epd_on(void)
     log_err("Failed to initialise %s", DEVICE);
     errno = ECOMM;
     return 1;
+}
+
+/* Displays provided bitmap on epaper device display. Bitmap length
+   must equal that of the display.
+
+   Returns:
+   0 Success.
+   1 Fail, invalid bitmap length, errno set to EINVAL.
+   2 Fail, SPI comms, errno set to ECOMM */
+int
+epd_display(uint8_t *bitmap, size_t len)
+{
+    log_info("Updating device display with %zu bitmap.", len);
+
+    /* 1 byte can represent 8px across the width. However, an extra
+       byte is required on each row if the number of px across the
+       width is not a factor of 8.  */
+    size_t width = (WIDTH % 8 == 0)
+	? WIDTH / 8
+	: WIDTH / 8 + 1; 
+
+    if (len != width * HEIGHT)  goto fail1;
+
+    if (ram_write(bitmap))      goto fail2;
+    if (ram_load())             goto fail2;
+
+    return 0;
+ fail1:
+    log_err("Invalid bitmap", DEVICE);
+    errno = EINVAL;
+    return 1;
+ fail2:
+    log_err("Failed to process bitmap on device (%s)", DEVICE);
+    errno = ECOMM;
+    return 2;
 }
 
 /* Resets the epaper display screen using the GPIO reset pin. */
@@ -166,7 +201,7 @@ epd_reset(void)
 int
 epd_off(void)
 {
-    log_info("Device (%s) entering deep sleep mode");
+    log_info("Device (%s) entering deep sleep mode", DEVICE);
 
     uint8_t dsm[] = { 0x01 };
 
@@ -180,42 +215,6 @@ epd_off(void)
     write_data(dsm, ARRSIZE(dsm));
 
     return 0;
-}
-
-/* Displays provided bitmap on epaper device display. Bitmap length
-   must equal that of the display.
-
-   Returns 0 Success.
-           1 Fail, invalid bitmap length, errno set to EINVAL.
-           2 Fail, SPI comms, errno set to ECOMM */
-int
-epd_display(uint8_t *bitmap, size_t len)
-{
-    log_info("Updating device display with bitmap.");
-
-    /* 1 byte can represent 8px across the width. However, an extra
-       byte is required on each row if the number of px across the
-       width is not a factor of 8.  */
-    size_t width = (WIDTH % 8 == 0)
-	? WIDTH / 8
-	: WIDTH / 8 + 1; 
-
-    if (len != width * HEIGHT) goto fail1;
-
-    /* Bitmap size identical to RAM size so cursor set to origin. */
-    if (ram_set_cursor(0, 0))   goto fail2;
-    if (ram_write(bitmap, len)) goto fail2;
-    if (ram_load())             goto fail2;
-
-    return 0;
- fail1:
-    log_err("Invalid bitmap", DEVICE);
-    errno = EINVAL;
-    return 1;
- fail2:
-    log_err("Failed to process bitmap on device (%s)", DEVICE);
-    errno = ECOMM;
-    return 2;
 }
 
 /* Returns width of epaper device screen in pixels */
@@ -256,7 +255,9 @@ init_gpio(void)
 
 /* Initiates SPI communication with epaper display unit.
 
-   Returns: 0 Success, 1 Fail. */
+   Returns:
+   0 Success.
+   1 Fail. */
 static int
 init_spi(void)
 {
@@ -302,7 +303,7 @@ write_command(enum COMMAND command)
    Returns: 0  on success.
    1  on failure, sets errno to EIO */
 static int
-write_data(const uint8_t *data, size_t len)
+write_data(uint8_t *data, size_t len)
 {
     /* DC pin high for data transfer */
     spi_gpio_write(PIN_DC, GPIO_LEVEL_HIGH);
@@ -363,7 +364,7 @@ push_shift_register(void)
    Returns: 0 successful write.
    1 SPI write error, sets errno EIO. */
 static int
-push_lut(const uint8_t *lut)
+push_lut(uint8_t *lut)
 {
     if (write_command(WRITE_LUT_REGISTER)) goto fail1;
     if (write_data(lut, 30))               goto fail1;
@@ -385,10 +386,10 @@ wait_while_busy(void)
     int t = 0;
     while (spi_gpio_read(PIN_BUSY) == GPIO_LEVEL_HIGH) {
 
-	if (t < 100) {
+	if (t > 100) {
 	    errno = EBUSY;
-	    log_err("Device (%s) not leaving busy state,"
-		    "Is power connected?.", DEVICE);
+	    log_err("Device (%s) not leaving busy state, "
+		    "is power connected?.", DEVICE);
 	    errno = EBUSY;
 	    return 1;
 	}
@@ -471,10 +472,24 @@ ram_set_cursor(uint16_t x, uint16_t y)
    Returns 0  Success.
            1  Fail, SPI comms failure, errno set to ECOMM. */
 static int
-ram_write(uint8_t *bitmap, size_t len)
+ram_write(uint8_t *bitmap)
 {
-    if (write_command(WRITE_RAM)) goto fail1;
-    if (write_data(bitmap, len)) goto fail1; 
+    /* Bitmap data must be passed row by row for this device. The
+       cursor must be reset at the start of each new row. */
+    size_t row_bytes = (WIDTH % 8) ? 1 + (WIDTH / 8) : WIDTH / 8;
+
+    for (size_t y = 0; y < HEIGHT; ++y) {
+	if (ram_set_cursor(0, y))
+	    goto fail1;
+
+	if (write_command(WRITE_RAM))
+	    goto fail1;
+        
+	for (size_t x = 0; x < row_bytes; ++bitmap, ++x) {
+	    if (write_data(bitmap, 1))
+		goto fail1;
+	}
+    }
 
     return 0;
  fail1:

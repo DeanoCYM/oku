@@ -2,7 +2,7 @@ LOGLEVEL?=2
 REMOTE?=pi@pi:~/oku/
 
 SPI_BACKEND?=wp
-DEVICE?=ws29bw
+DEVICE?=emulated
 
 CC=cc
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) -I./src
@@ -35,4 +35,7 @@ test: clean all
 	--error-exitcode=33 --quiet ./$(TARGET)
 
 sync: clean
-	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)	
+	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)
+
+emulate: test
+	mupdf display.pbm

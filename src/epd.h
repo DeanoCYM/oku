@@ -46,11 +46,11 @@ enum PIXEL_COLOUR { BLACK, WHITE };
 /* Interface */
 
 /* Fully initialises the device. Must be performed prior to any other
-   routines and to wake from sleep. Should warn user, but not fail if
-   device is already initialised.
+   routines and to wake from sleep.
 
-   Returns: 0  Success, device initialised.
-            1  Fail, errno set to ECOMM. */
+   Returns:
+   0  Success, device initialised.
+   1  Fail, errno set to ECOMM. */
 int epd_on(void);
 
 /* Displays provided bitmap on device display. Bitmap length must
@@ -58,9 +58,10 @@ int epd_on(void);
    Use epd_off() to ensure device is not powered for long period of
    time as this can damage some devices.
 
-   Returns 0 Success.
-           1 Fail, invalid bitmap length, errno set to EINVAL.
-           2 Fail, communication error, errno set to ECOMM. */
+   Returns:
+   0 Success.
+   1 Fail, invalid bitmap length, errno set to EINVAL.
+   2 Fail, communication error, errno set to ECOMM. */
 int epd_display(uint8_t *bitmap, size_t len);
 
 /* Resets the device screen to a white background. */

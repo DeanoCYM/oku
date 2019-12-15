@@ -42,24 +42,26 @@
 
 int main(int argc, char *argv[])
 {
+    log_info("Testing oku with %s.", argv[argc-1]);
+
     /* Create bitmap buffer */
     if (bitmap_create())
 	goto fail1;
 	    
     /* Set some pixels */
     for (uint16_t x = 0; x < epd_get_width(); ++x)
-	if (bitmap_px_toggle(x, 5))
+	if (bitmap_px_toggle(x, 0))
 	    goto fail2;
     
     for (uint16_t y = 0; y < epd_get_height(); ++y)
-	if (bitmap_px_toggle(5, y))
+	if (bitmap_px_toggle(0, y))
 	    goto fail2;
 
     /* Turn on the device and apply bitmap */
     if (epd_on())
 	goto fail2;
     if (epd_display(bitmap_get_raster(), bitmap_get_size()))
-	goto fail2;
+	goto fail3;
 
     /* Clean up */
     if (epd_off())

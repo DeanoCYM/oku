@@ -79,7 +79,7 @@ spi_init_gpio(void)
 void
 spi_gpio_pinmode(int pin, enum SPI_PINMODE mode)
 {
-    log_info("%s setting pin %d to %d", BACKEND, pin, mode);
+    log_debug("%s setting pin %d to %d", BACKEND, pin, mode);
     pinMode(pin, mode);
     return;
 }
@@ -110,7 +110,7 @@ spi_open(int channel, int speed)
 void
 spi_gpio_write(int pin, int value)
 {
-    log_info("Setting pin %d to %d with %s backend",
+    log_debug("Setting pin %02d to %02d with %s backend",
 	     pin, value, BACKEND);
     digitalWrite(pin, value);
     return;
@@ -132,27 +132,40 @@ spi_gpio_read(int pin)
    Returns: 0, on success.
             1 Error, sets ERRNO to EIO or EBADF*/
 int
-spi_write(const uint8_t *data, size_t len)
+spi_write(uint8_t *data, size_t len)
 {
     if (spi_fid < 0) {
 	log_err("Invalid file descriptor %d (%d)");
 	errno = EBADF;
 	return 1;
     }
-    
-    ssize_t res = write(spi_fid, data, len);
+
+    int res = write(spi_fid, data, len);
 
     /* Safe to compare signed and unsigned after checking that the
        signed is not negative. */
     if (res < 0 || (size_t) res < len) {
-	log_err("SPI write failure (res=%d)", res);
-	errno = EIO;
-	return 1;
+    	log_err("SPI write failure (%d)", res);
+    	errno = EIO;
+    	return 1;
     }
 
     return 0;
+
+    /* for (size_t i = 0; i < len; ++i) { */
+    /* 	res = wiringPiSPIDataRW(channel, data + i, 1); */
+    /* 	if (res < 0) { */
+    /* 	    log_err("SPI write error"); */
+    /* 	    errno = EIO; */
+    /* 	} */
+    /* } */
+
+    /* return (res < 0) ? 1 : 0; */
+
 }
 	      
+
+
 /* Generic delay (guaranteed minimum delay time) */
 void
 spi_delay(unsigned int time)

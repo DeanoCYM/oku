@@ -73,7 +73,7 @@ int spi_open(int channel, int speed);
 /* Write n bytes to SPI interface.
    Returns: 0  Success.
             1  SPI Error, errno set to EIO */
-int spi_write(const uint8_t *data, size_t len);
+int spi_write(uint8_t *data, size_t len);
 
 /* Generic delay (guaranteed minimum delay time) */
 void spi_delay(unsigned int time);
