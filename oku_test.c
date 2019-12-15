@@ -34,25 +34,48 @@
 */
 
 #include <ert_log.h>
+#include <stdint.h>
 
-#include "spi_wp.h"
-#include "epd_bitmap.h"
-#include "epd_ws29bw.h"
+#include "spi.h"		/* GPIO and SPI communication */
+#include "epd.h"		/* Device specific commands */
+#include "bitmap.h"		/* Bitmap manipulation */
 
 int main(int argc, char *argv[])
 {
-    log_info("Testing oku");
-
-    if (bitmap_create()) return 1;
-
-    if (bitmap_px_toggle(0, 1)) return 2;
-    if (bitmap_px_black(0, 2))  return 2;
-    if (bitmap_px_black(0, 3))  return 2;
-    if (bitmap_px_white(0,2))   return 2;
-
-    if (bitmap_destroy()) return 3;
-
-    log_info("Testing complete");
+    /* Create bitmap buffer */
+    if (bitmap_create())
+	goto fail1;
+	    
+    /* Set some pixels */
+    for (uint16_t x = 0; x < epd_get_width(); ++x)
+	if (bitmap_px_toggle(x, 5))
+	    goto fail2;
     
+    for (uint16_t y = 0; y < epd_get_height(); ++y)
+	if (bitmap_px_toggle(5, y))
+	    goto fail2;
+
+    /* Turn on the device and apply bitmap */
+    if (epd_on())
+	goto fail2;
+    if (epd_display(bitmap_get_raster(), bitmap_get_size()))
+	goto fail2;
+
+    /* Clean up */
+    if (epd_off())
+	goto fail2;
+
+    if (bitmap_destroy())
+	goto fail3;
+
+    log_info("Testing complete.");
     return 0;
+
+ fail3:
+    epd_off();
+ fail2:
+    bitmap_destroy();
+ fail1:
+    log_err("Testing failed");
+    return 1;
 }

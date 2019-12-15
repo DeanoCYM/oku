@@ -24,7 +24,8 @@ $(TARGET): $(OBJ) $(TARGET).o
 
 clean:
 	rm -f $(TARGET)
-	rm -f $(OBJ)
+	rm -f *.o
+	rm -f display.pbm
 
 tags:
 	etags src/*.c src/*.h

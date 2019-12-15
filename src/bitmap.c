@@ -42,185 +42,291 @@
 #include "bitmap.h"
 #include "epd.h"
 
+struct Bitmap {
+    uint8_t *bitmap;	/* Bitmap buffer */
+    size_t length;	/* Length of bitmap buffer */
+    size_t width;	/* Px count in one display row */
+    size_t height;	/* Px count in one display column */
+};
 
-static uint8_t *bitmap = NULL;	/* Bitmap buffer */
+static struct Bitmap *raster = NULL;
 
 /*** Forward Declarations ***/
-static size_t display_area(void);
-static int alloc_bitmap(void);
-static int free_bitmap(void);
-static uint8_t* byte_offset(uint16_t x, uint16_t y);
+static size_t bytes_in_width(void);
+static size_t bytes_in_bitmap(void);
+static size_t d2_to_d1(uint16_t x, uint16_t y);
+static uint8_t* byte_at_index(uint16_t x, uint16_t y);
 static uint8_t bit_number(uint16_t x);
-static int invalid_bitmap(void);
+static int check_bitmap(void);
+static int check_d2_coordinates(uint16_t x, uint16_t y);
 
 /*** Interface ***/
 
-/* Allocate memory for bitmap.
+/* Allocates memory for bitmap buffer and container structure. Records
+   the buffer length and initialises entire bitmap to 0.
 
-   Returns: 0 Success.
-            1 Failed, memory error, sets errno to ENOMEM. */
+   Returns:
+   0 Success.
+   1 Failed, memory error, sets errno to ENOMEM. */
 int
 bitmap_create(void)
 {
-    log_info("Creating %zuB buffer for %zuW %zuH bitmap",
-	     display_area(), epd_get_width(), epd_get_height());
+    log_info("Creating new bitmap buffer");
 
-    return alloc_bitmap();
+    /* Allocate memory for container */
+    raster = malloc(sizeof(*raster));
+    if (raster == NULL)
+	goto fail1;
+
+    /* Import device dimensions */
+    raster->width = epd_get_width();
+    raster->height = epd_get_height();
+
+    /* Length of structre is hardware specific and determined using
+       device specific implementation of epd.h */
+    raster->length = bytes_in_bitmap();
+    log_info("Buffer (%dW x %dH) == %dB",
+	     raster->width, raster->height, raster->length);
+
+    /* Allocate memory for bitmap */
+    raster->bitmap = calloc(raster->length, sizeof (uint8_t));
+    if (raster->bitmap == NULL)
+	goto fail2;
+
+    return 0;
+ fail2:
+    raster->length = 0;
+    free(raster);
+    raster = NULL;
+ fail1:
+    log_err("Memory error on allocate");
+    errno = ENOMEM;
+    return 1;
 }
 
 /* Free memory allocated for bitmap.
 
-   Returns: 0 Success.
-            1 Error, invalid pointer, errno set to ECANCELED*/
+   Returns:
+   0 Success.
+   1 Error, invalid pointer, errno set to ECANCELED*/
 int
 bitmap_destroy(void)
 {
-    log_info("Freeing bitmap buffer. ");
-    return free_bitmap();
-}
+    log_info("Destroying bitmap buffer.");
 
-/* Toggles logical state of bit defining pixel (in bitmap) at given
-   coordinates. */
-int
-bitmap_px_toggle(uint16_t x, uint16_t y)
-{
-    if (invalid_bitmap())
+    if (raster) {		/* Ensure raster is allocated */
+
+	raster->width  = 0;
+	raster->height = 0;
+	raster->length = 0;
+
+	if (raster->bitmap) {	/* Ensure bitmap allocated */
+	    free(raster->bitmap);
+	    raster->bitmap = NULL;
+	} else {
+	    log_warn("Attempted to free NULL raster");
+	}
+
+	free(raster);
+	raster = NULL;
+
+    } else {
+	log_warn("Attempted to free NULL pointer.");
+	errno = ECANCELED;
 	return 1;
-
-    uint8_t *byte = byte_offset(x, y);
-    uint8_t bitnumber_mask = bit_number(x);
-
-    /* Toggle bit using mask, retaining all other bits. */
-    *byte ^= bitnumber_mask;
+    }
 
     return 0;
 }
 
-/* Unsets bit defining pixel (in bitmap) at given coordinates */
+/* Returns:
+   Pointer to first element in bitmap or NULL on error */
+uint8_t *
+bitmap_get_raster(void)
+{
+    if(check_bitmap())
+	return NULL;    
+    return raster->bitmap;
+}
+
+size_t
+bitmap_get_size(void)
+{
+    return raster->length;
+}
+
+/* Toggles logical state of bit defining pixel (in bitmap) at given
+   coordinates.
+
+   Returns:
+   0 Success.
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
+int
+bitmap_px_toggle(uint16_t x, uint16_t y)
+{
+    if (check_bitmap())
+	return 1;
+    if (check_d2_coordinates(x, y))
+	return 2;
+    
+    uint8_t *byte = byte_at_index(x, y);
+    uint8_t bit_mask = bit_number(x);
+
+    /* Toggle bit using mask, retaining all other bits. */
+    *byte ^= bit_mask;
+
+    return 0;
+}
+
+/* Unsets bit defining pixel (in bitmap) at given coordinates 
+
+   Reterns:
+   0 Success.
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
 int
 bitmap_px_black(uint16_t x, uint16_t y)
 {
-    if (invalid_bitmap())
+    if (check_bitmap())
 	return 1;
+    if (check_d2_coordinates(x, y))
+	return 2;
 
-    uint8_t *byte = byte_offset(x, y);
-    uint8_t bitnumber_mask = bit_number(x);
+    uint8_t *byte = byte_at_index(x, y);
+    uint8_t bit_mask = bit_number(x);
 
     /* Black is represented with logical 0: unset bit using mask,
        retaining all other bits */
-    *byte &= !bitnumber_mask;
+    *byte &= !bit_mask;
     
     return 0;
 }
 
-/* Sets bit defining pixel (in bitmap) at given coordinates */
+/* Sets bit defining pixel (in bitmap) at given coordinates.
+
+   Returns:
+   0 Success.
+   1 At least one coordinate out of range, errno set to ECANCELED.
+   2 Critical bitmap buffer error, errno set to*/
 int
 bitmap_px_white(uint16_t x, uint16_t y)
 {
-    if (invalid_bitmap())
+    if (check_bitmap())
 	return 1;
-
-    uint8_t *byte = byte_offset(x, y);
-    uint8_t bitnumber_mask = bit_number(x);
+    if (check_d2_coordinates(x, y))
+	return 2;
+    
+    uint8_t *byte = byte_at_index(x, y);
+    uint8_t bit_mask = bit_number(x);
 
     /* White is represented with logical 1: set bit using mask,
        retaining all other bits */
-    *byte |= bitnumber_mask;
+    *byte |= bit_mask;
 
     return 0;
 }
 
 /*** Static Functions ***/
 
-/* Calculates number of bytes required to define the entire epaper
-   display area.
+/* Calculates number of bytes required to define one row of pixels
+   across the width.
 
-   Returns: Bytes required buffer full bitmap. */
+   Returns:
+   Number of bytes defining pixels in width. */
 static size_t
-display_area(void)
+bytes_in_width(void)
 {
     /* 1 byte can represent 8px across the width. However, an extra
        byte is required on each row if the number of px across the
        width is not a factor of 8.  */
-
-    const size_t width = (epd_get_width() % 8 == 0)
-	? epd_get_width() / 8
-	: epd_get_width() / 8 + 1;
-    
-    return width * epd_get_height();
+    return (raster->width % 8 == 0)
+	? raster->width / 8
+	: raster->width / 8 + 1;
 }
 
+/* Calculates number of bytes required to define all pixels in display
+   area.
 
-/* Allocates memory for bitmap buffer (file scope).
-
-   Returns: 0  Success
-            1  Memory allocation error, errno set to ENOMEM */
-static int
-alloc_bitmap(void)
+   Returns: Bytes required buffer full bitmap. */
+static size_t
+bytes_in_bitmap(void)
 {
-    bitmap = calloc(display_area(), sizeof (uint8_t));
-    if (!bitmap) {
-	log_err("Failed to allocate bitmap buffer");
-	errno = ENOMEM;
-	return 1;
-    }
-
-    return 0;
+    /* Each pixel of height requires the memory of one span of the
+       width */
+    return bytes_in_width() * raster->height;
 }
 
-/* Free dynamically allocated bitmap buffer.
+/* Converts 2D array indicies into 1D index.
 
-   Returns: 0 Success.
-            1 Fail, errno set to ECANCELED */
-static int
-free_bitmap(void)
+   Returns: 1D array index. */
+static size_t
+d2_to_d1(uint16_t x, uint16_t y)
 {
-    if (invalid_bitmap()) {
-	log_warn("Cannot free buffer, bitmap not allocated");
-	errno = ECANCELED;
-	return 1;
-    }
-
-    free(bitmap);
-    bitmap = NULL;
-
-    return 0;
+    return (y * bytes_in_width()) + (x / 8);
 }
 
-/* Returns a pointer to bitmap, offset to the byte that contains the
-   bit defining the pixel at the given coordinates. */
+/* Calculates the address of the byte containing the bit defining the
+   pixel at given coordinate.
+
+   Returns:
+   Byte address containing pixel (x,y) */
 static uint8_t*
-byte_offset(uint16_t x, uint16_t y)
+byte_at_index(uint16_t x, uint16_t y)
 {
-    /* Eight pixels in x axis is one byte. One pixel in y axis is one
-       byte. */    
-    size_t offset = ( (size_t)x * y ) + ( x / 8 );
-
-    return &bitmap[offset];
+    return raster->bitmap + d2_to_d1(x, y);
 }
 
-/* Returns bit number defining the pixel state at the given x
-   coordinate. */
+/* Returns a mask with the bit defining a pixel with x coordinate
+   set to 1 and all other bits set to 0.
+
+   Returns: Bit mask for pixel at given x coordinate. */
 static uint8_t
-bit_number(uint16_t x)
-{
-    /* Binary and pixel representation is opposite, i.e origin pixel
-       data is in the right most bit of first byte (0000 0001) and so
-       should not be shifted. */
-    return 0x01 << (x % 8);
+bit_number(uint16_t x) { 
+
+    /* Least significant bit stores pixel data
+       closest to origin */
+    //return 0x01 << (x % 8);
+
+    /* Most significant bit stores pixel data closest to origin */
+    return 0x01 << ( 7 - (x % 8) ); 
 }
 
-/* Returns 1 and sets errno to ECANCELED if bitmap is an invalid
-   pointer. Returns 0 otherwise. */
-static int
-invalid_bitmap(void)
-{
-    if (NULL == bitmap) {
-	errno = ECANCELED;
-	log_warn("Attempted to free invalid pointer.");
-	errno = ECANCELED;
-    return 1;
-    }
+/* Ensures that bitmap is allocated and non-zero length.
 
+   Returns:
+   0 Vaild bitmap
+   1 Bitmap unallocated or zero length, errno set to ECANCELED. */
+static int
+check_bitmap(void)
+{
+    if (!raster || !raster->bitmap || raster->length == 0) {
+	log_err("Critical Error: Invalid bitmap.");
+	errno = ECANCELED;
+	return 1;
+    }
+    
+    return 0;
+}
+
+/* Ensure that the x and y coordiantes provided are within the device
+   dimensions.
+
+   Returns:
+   0 Valid coordinates
+   1 Invalid coordinates, errno set to EINVAL. */
+static int
+check_d2_coordinates(uint16_t x, uint16_t y)
+{
+    /* Raster dimensions are counts, and so are one less than the
+       maximum allowable coordinate. */
+    if ( x >= raster->width || y >= raster->height ) {
+	errno = ECANCELED;
+	log_err("Coordinate (%d,%d) overflows buffer, max(%d,%d)",
+		x, y, raster->width, raster->height);
+	errno = EINVAL;	
+	return 1;
+    }
+	
     return 0;
 }

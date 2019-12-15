@@ -119,7 +119,7 @@ static int ram_load(void);
    Returns: 0  Success.
             1  Fail, errno set to ECOMM */
 int
-epd_initialise(void)
+epd_on(void)
 {
     log_info("Initialising %s E Paper Device", DEVICE);
 
@@ -164,7 +164,7 @@ epd_reset(void)
    Returns: 0  Success.
             1  Failed to enter deep sleep mode, errno set to EBUSY */
 int
-epd_sleep(void)
+epd_off(void)
 {
     log_info("Device (%s) entering deep sleep mode");
 
@@ -189,7 +189,7 @@ epd_sleep(void)
            1 Fail, invalid bitmap length, errno set to EINVAL.
            2 Fail, SPI comms, errno set to ECOMM */
 int
-epd_bitmap_display(uint8_t *bitmap, size_t len)
+epd_display(uint8_t *bitmap, size_t len)
 {
     log_info("Updating device display with bitmap.");
 

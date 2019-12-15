@@ -42,20 +42,34 @@
 
 /* Allocate bitmap memory.
 
-   Returns 0 Success.
-           1 Failed to allocate bitmap memory, errno set to ENOMEM. */
+   Returns:
+   Pointer to Bitmap data structure.
+   NULL, Failed to allocate bitmap memory, errno set to ENOMEM. */
 int bitmap_create(void);
 
-/* Allocate bitmap memory.
+/* Free bitmap memory.
 
-   Returns 0 Success.
-           1 Failed to free bitmap memory, errno set to ECANCELED. */
+   Returns:
+   0 Success.
+   1 Failed to free bitmap memory, errno set to ECANCELED. */
 int bitmap_destroy(void);
 
-/* Modify specific pixels, if coordinates out of range, returns final
-   pixel and sets errno.  */
+/* Modify specific pixels.
+
+   Returns:
+   0 Success.
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
 int bitmap_px_toggle(uint16_t x, uint16_t y);
 int bitmap_px_black(uint16_t x, uint16_t y);
 int bitmap_px_white(uint16_t x, uint16_t y);
+
+/* Returns:
+   Pointer to start of bitmap */
+uint8_t *bitmap_get_raster(void);
+
+/* Returns:
+   Length of bitmap in bytes */
+size_t bitmap_get_size(void);
 
 #endif	/* BITMAP_H */
