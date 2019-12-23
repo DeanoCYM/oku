@@ -29,7 +29,19 @@
 
 /* Description:
 
-   Electronic paper display bitmap buffer control.
+   Electronic paper display bitmap buffer control. The buffer is
+   designed to correspond to the portable bitmap format (PBM):
+
+   Each row contains the same number of bits, packed 8 to a byte,
+   don't care bits to fill out the last byte in the row if the width
+   is not a factor of 8.
+
+   Each bit represents a pixel: 1 is black, 0 is white.
+
+   The order of the pixels is left to right. The order of their
+   storage within each file byte is most significant bit to least
+   significant bit. The order of the file bytes is from the beginning
+   of the file toward the end of the file.
 
 */
 
@@ -37,6 +49,11 @@
 #define BITMAP_H
 
 #include <sys/types.h>
+
+/* Convert between one and two dimensional indicies  */
+#define D2_TO_D1(X, Y) ((X) + ( (Y) * bitmap_get_pitch() ))
+#define D1_TO_X(LEN)   ( (LEN) - ( bitmap_get_rows() * bitmap_get_pitch() )
+#define D1_TO_Y(LEN)   ( ((LEN) - D1_TO_X(LEN)) / bitmap_get_pitch() )
 
 /* Interface */
 
@@ -64,6 +81,14 @@ int bitmap_px_toggle(uint16_t x, uint16_t y);
 int bitmap_px_black(uint16_t x, uint16_t y);
 int bitmap_px_white(uint16_t x, uint16_t y);
 
+/* Copy rectangle into bitmap buffer
+
+   Returns:
+   0 Success. 
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
+int bitmap_copy(uint8_t *bitmap, uint16_t x, uint16_t y);
+
 /* Returns:
    Pointer to start of bitmap */
 uint8_t *bitmap_get_raster(void);
@@ -71,5 +96,7 @@ uint8_t *bitmap_get_raster(void);
 /* Returns:
    Length of bitmap in bytes */
 size_t bitmap_get_size(void);
+size_t bitmap_get_pitch(void);
+size_t bitmap_get_rows(void);
 
 #endif	/* BITMAP_H */

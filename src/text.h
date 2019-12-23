@@ -1,4 +1,4 @@
-/* oku_test.c
+/* text.h
  * 
  * This file is part of oku.
  *
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with oku.  If not, see <https://www.gnu.org/licenses/>.
  * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS OR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
@@ -29,57 +29,37 @@
 
 /* Description:
 
-   Functional test of oku.
+   Writes string to device.
 
 */
 
-#include <ert_log.h>
 #include <stdint.h>
+#include <sys/types.h>
 
-#include "spi.h"		/* GPIO and SPI communication */
-#include "epd.h"		/* Device specific commands */
-#include "bitmap.h"		/* Bitmap manipulation */
-#include "text.h"
 
-int main(int argc, char *argv[])
-{
-    log_info("Testing oku with %s.", argv[argc-1]);
+int text_add_string(void);
 
-    /* Create bitmap buffer */
-    if (bitmap_create())
-	goto fail1;
-	    
-    /* Set some pixels */
-    for (uint16_t y = 0; y < epd_get_height(); y += 2)
-	for (uint16_t x = 0; x < epd_get_width(); x += 2)
-	    if (bitmap_px_toggle(x, y))
-		goto fail2;
+/* Define the area to be used for writing text. Clears area setting
+   pixels to white. Text origin set to (xmin, ymin).
 
-    
-    if ( text_add_string() )
-	goto fail2;
+   Returns:
+   0 Success
+   1 Error, coordinates out of bounds, errno set to EINVAL.
+   2 Error, communitication error, errno set to EIO  */
+//int text_set_area(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax);
 
-    /* Turn on the device and apply bitmap */
-    if (epd_on())
-	goto fail2;
-    if (epd_display(bitmap_get_raster(), bitmap_get_size()))
-	goto fail3;
+/* Sets the font (defaults to ...TBC).
 
-    /* Clean up */
-    if (epd_off())
-	goto fail2;
+   Returns:
+   0 Success
+   1 Error, font size not avaliable, errno set to EINVAL */
+//int text_set_font(char *font);
 
-    if (bitmap_destroy())
-	goto fail3;
+/* Writes string to device. Text starts at origin of text area and
+   proceeds until there is no remaining room.
+   
+   Returns:
+   Number of characters written.
+   -1 Communication error, errno set to EIO. */
+// int text_write(const char *str, size_t len);
 
-    log_info("Testing complete.");
-    return 0;
-
- fail3:
-    epd_off();
- fail2:
-    bitmap_destroy();
- fail1:
-    log_err("Testing failed");
-    return 1;
-}

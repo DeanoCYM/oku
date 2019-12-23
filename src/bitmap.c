@@ -34,7 +34,7 @@
 
    Each row contains the same number of bits, packed 8 to a byte,
    don't care bits to fill out the last byte in the row if the width
-   is not a factor of 8.
+   is not a factor of 8. The pitch is the number of bytes in one row.
 
    Each bit represents a pixel: 1 is black, 0 is white.
 
@@ -151,6 +151,19 @@ bitmap_destroy(void)
     return 0;
 }
 
+/* Copy rectangle into bitmap buffer 
+
+   Returns:
+   0 Success.
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
+//int
+//bitmap_copy(uint8_t *bitmap, uint16_t x, uint16_t y)oo
+//{
+//    return 0;
+//}
+
+
 /* Returns:
    Pointer to first element in bitmap or NULL on error */
 uint8_t *
@@ -198,7 +211,7 @@ bitmap_px_toggle(uint16_t x, uint16_t y)
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL. */
 int
-bitmap_px_black(uint16_t x, uint16_t y)
+bitmap_px_white(uint16_t x, uint16_t y)
 {
     if (check_bitmap())
 	return 1;
@@ -208,7 +221,7 @@ bitmap_px_black(uint16_t x, uint16_t y)
     uint8_t *byte = byte_at_index(x, y);
     uint8_t bit_mask = bit_number(x);
 
-    /* Black is represented with logical 0: unset bit using mask,
+    /* White is represented with logical 0: unset bit using mask,
        retaining all other bits */
     *byte &= !bit_mask;
     
@@ -222,7 +235,7 @@ bitmap_px_black(uint16_t x, uint16_t y)
    1 At least one coordinate out of range, errno set to ECANCELED.
    2 Critical bitmap buffer error, errno set to*/
 int
-bitmap_px_white(uint16_t x, uint16_t y)
+bitmap_px_black(uint16_t x, uint16_t y)
 {
     if (check_bitmap())
 	return 1;
@@ -232,7 +245,7 @@ bitmap_px_white(uint16_t x, uint16_t y)
     uint8_t *byte = byte_at_index(x, y);
     uint8_t bit_mask = bit_number(x);
 
-    /* White is represented with logical 1: set bit using mask,
+    /* Black is represented with logical 1: set bit using mask,
        retaining all other bits */
     *byte |= bit_mask;
 

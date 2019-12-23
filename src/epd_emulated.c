@@ -66,7 +66,7 @@ epd_on(void)
     if (pbm) {			/* file already open */
 	errno = EALREADY;
 	log_warn("File %s already open", FILENAME);
-	return 0;
+	return 1;
     }
     
     if (file_open(FILENAME)) {
@@ -260,11 +260,6 @@ write_bitmap(uint8_t *bitmap, size_t len)
 {
     size_t res = 0;		/* bytes written */
     
-    /* /\* 1D bitmap buffer needs to be written as 2D raster with a new */
-    /*    line between each row. *\/ */
-    /* for (uint16_t y = 0; y < epd_get_height(); ++y) { */
-    /* } */
-
     res = fwrite(bitmap, sizeof bitmap[0], len, pbm);
     if (res < len) {
 	log_err("Incomplete write to %s", FILENAME);

@@ -1,4 +1,4 @@
-/* oku_test.c
+/* text.c
  * 
  * This file is part of oku.
  *
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with oku.  If not, see <https://www.gnu.org/licenses/>.
  * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS OR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
@@ -27,59 +27,13 @@
  * SOFTWARE.
  */
 
-/* Description:
+/* Description: */
 
-   Functional test of oku.
-
-*/
-
-#include <ert_log.h>
 #include <stdint.h>
+#include <ert_log.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
-#include "spi.h"		/* GPIO and SPI communication */
-#include "epd.h"		/* Device specific commands */
-#include "bitmap.h"		/* Bitmap manipulation */
+#include "epd.h"
 #include "text.h"
 
-int main(int argc, char *argv[])
-{
-    log_info("Testing oku with %s.", argv[argc-1]);
-
-    /* Create bitmap buffer */
-    if (bitmap_create())
-	goto fail1;
-	    
-    /* Set some pixels */
-    for (uint16_t y = 0; y < epd_get_height(); y += 2)
-	for (uint16_t x = 0; x < epd_get_width(); x += 2)
-	    if (bitmap_px_toggle(x, y))
-		goto fail2;
-
-    
-    if ( text_add_string() )
-	goto fail2;
-
-    /* Turn on the device and apply bitmap */
-    if (epd_on())
-	goto fail2;
-    if (epd_display(bitmap_get_raster(), bitmap_get_size()))
-	goto fail3;
-
-    /* Clean up */
-    if (epd_off())
-	goto fail2;
-
-    if (bitmap_destroy())
-	goto fail3;
-
-    log_info("Testing complete.");
-    return 0;
-
- fail3:
-    epd_off();
- fail2:
-    bitmap_destroy();
- fail1:
-    log_err("Testing failed");
-    return 1;
-}

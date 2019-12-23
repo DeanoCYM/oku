@@ -30,7 +30,24 @@
 /* Description:
  
    Implementation of epd.h for waveshare 9.2" black and white
-   electronic paper display module.
+   electronic paper display module (EPDM).
+
+   EPDM displays binary bitmap images. Bitmaps are provided as
+   uint8_t* arrays using bitmap.h.
+
+   One bit defines each pixel across the width of the EPD packed to 8
+   a byte, don't care bits are at the end of the row if the device
+   width in pixels is not a factor of 8.
+
+   The order of the pixels is left to right. The order of their
+   storage within each file byte is most significant bit to least
+   significant bit.
+
+   Each bit represents a pixel: 1 is white, 0 is black. This is the
+   inverse of the portable bitmap format (PMB) provided by
+   bitmap.h. Consequently, before writing bitmap data to ram, bytes
+   must be inverted.
+
  */
 
 #include "epd.h"
@@ -132,7 +149,7 @@ epd_on(void)
     if (push_shift_register())     goto fail1; /* Startup commands */
     if (push_lut(lut_full_update)) goto fail1; /* Sends look up table */
 
-    /* RAM to hold full bitmap, representing pixels from orign to
+    /* RAM to hold full bitmap, representing pixels from origin to
        maximum dimensions */
     ram_set_window(0, WIDTH, 0, HEIGHT);
 
@@ -297,7 +314,7 @@ write_command(enum COMMAND command)
     return 0;
 }
 
-/* Sets the GPIO pins for data transfer and transfters given
+/* Sets the GPIO pins for data transfer and transfers given
    data to epaper device.
 
    Returns: 0  on success.
@@ -435,7 +452,7 @@ ram_set_window(uint16_t xmin, uint16_t xmax,
     errno = ECOMM;
     return 1;
 }
-/* Sets the RAM cursor for next bitmap write. Takes coordiantes that
+/* Sets the RAM cursor for next bitmap write. Takes coordinates that
    represent number of pixels from display origin.
 
    Returns: 0  Success.
@@ -465,9 +482,12 @@ ram_set_cursor(uint16_t x, uint16_t y)
     return 1;
 }
 
-/* Write the provided bitmap to the device RAM. Ensure that the RAM
-   cursor is set to the appropriate point before use and that there is
-   enough space on the device.
+/* Write the provided bitmap to the device RAM row by row.
+
+   The RAM cursor is set before writing each row. The logical
+   representation of black (0) and white (1) for this EPDM is the
+   inverse of the PBM format supplied by bitmap.h. Consequently bytes
+   must be inverted before they are written.
 
    Returns 0  Success.
            1  Fail, SPI comms failure, errno set to ECOMM. */
@@ -475,7 +495,7 @@ static int
 ram_write(uint8_t *bitmap)
 {
     /* Bitmap data must be passed row by row for this device. The
-       cursor must be reset at the start of each new row. */
+       cursor must be set at the start of each new row. */
     size_t row_bytes = (WIDTH % 8) ? 1 + (WIDTH / 8) : WIDTH / 8;
 
     for (size_t y = 0; y < HEIGHT; ++y) {
@@ -486,7 +506,11 @@ ram_write(uint8_t *bitmap)
 	    goto fail1;
         
 	for (size_t x = 0; x < row_bytes; ++bitmap, ++x) {
-	    if (write_data(bitmap, 1))
+
+	    /* Logical representation of black and white pixels is
+	       the inverse of that provided by bitmap.h */
+	    uint8_t cur = ~(*bitmap);
+	    if (write_data(&cur, 1))
 		goto fail1;
 	}
     }
