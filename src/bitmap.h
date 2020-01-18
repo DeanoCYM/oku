@@ -27,9 +27,11 @@
  * SOFTWARE.
  */
 
-/* Description:
+/***************/
+/* Description */
+/***************/
 
-   Electronic paper display bitmap buffer control. The buffer is
+/* Electronic paper display bitmap buffer control. The buffer is
    designed to correspond to the portable bitmap format (PBM):
 
    Each row contains the same number of bits, packed 8 to a byte,
@@ -42,44 +44,70 @@
    storage within each file byte is most significant bit to least
    significant bit. The order of the file bytes is from the beginning
    of the file toward the end of the file.
-
 */
 
 #ifndef BITMAP_H
 #define BITMAP_H
 
 #include <sys/types.h>
+#include "epd.h"
 
-/* Convert between one and two dimensional indicies  */
-#define D2_TO_D1(X, Y) ((X) + ( (Y) * bitmap_get_pitch() ))
-#define D1_TO_X(LEN)   ( (LEN) - ( bitmap_get_rows() * bitmap_get_pitch() )
-#define D1_TO_Y(LEN)   ( ((LEN) - D1_TO_X(LEN)) / bitmap_get_pitch() )
+/***********/
+/* Objects */
+/***********/
 
-/* Interface */
+/* Object: BITMAP
 
-/* Allocate bitmap memory.
+   Structure containing bitmap dimensions. Also provides an pointer to
+   a buffer which must be assigned manually.
+ */
+typedef struct BITMAP {
+    uint8_t *buffer;		/* Pointer to bitmap buffer */
+    size_t length;		/* Length of buffer (1D) in bytes */
+    size_t pitch;		/* Number of bytes in the width */
+    size_t row_px;		/* Pixel count in one row */
+} BITMAP;
 
-   Returns:
-   Pointer to Bitmap data structure.
-   NULL, Failed to allocate bitmap memory, errno set to ENOMEM. */
-int bitmap_create(void);
+enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
 
-/* Free bitmap memory.
+/**************************/
+/* Interface Deceleration */
+/**************************/
+
+/* Function: bitmap_create
+
+   Initialise bitmap object using electronic paper device
+   dimensions. This does function does not allocate memory for the
+   bitmap buffer in bmp->buffer. This must be done manually by
+   allocating bmp->length bytes.
+
+   bmp - Bitmap object.
+   width - Pixel count in width.
+   height - Pixel count in height.
 
    Returns:
    0 Success.
-   1 Failed to free bitmap memory, errno set to ECANCELED. */
-int bitmap_destroy(void);
+   1 Invalid width or height, errno set to EINVAL.
+*/
+int bitmap_create(BITMAP *bmp, size_t width, size_t height);
 
-/* Modify specific pixels.
+/* Function: bitmap_modify
+
+   Sets, unsets or toggles the colour of the pixels at the given
+   coordinates according to the given mode.
+
+   bmp - Bitmap object (bmp->buffer must be allocated).
+   x,y - Cartesian coordinates of pixel.
+   mode - Set to black, white or toggle pixel colour.
+   pixel_colour - device logical representation of a black pixel
 
    Returns:
    0 Success.
    1 Critical bitmap buffer error, errno set to ECANCELED.
-   2 At least one coordinate out of range, errno set to EINVAL. */
-int bitmap_px_toggle(uint16_t x, uint16_t y);
-int bitmap_px_black(uint16_t x, uint16_t y);
-int bitmap_px_white(uint16_t x, uint16_t y);
+   2 At least one coordinate out of range, errno set to EINVAL.
+*/
+int bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
+		     enum SET_PIXEL_MODE mode, int pixel_colour);
 
 /* Copy rectangle into bitmap buffer
 
@@ -87,16 +115,6 @@ int bitmap_px_white(uint16_t x, uint16_t y);
    0 Success. 
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL. */
-int bitmap_copy(uint8_t *bitmap, uint16_t x, uint16_t y);
-
-/* Returns:
-   Pointer to start of bitmap */
-uint8_t *bitmap_get_raster(void);
-
-/* Returns:
-   Length of bitmap in bytes */
-size_t bitmap_get_size(void);
-size_t bitmap_get_pitch(void);
-size_t bitmap_get_rows(void);
+//int bitmap_copy(uint8_t *bitmap, uint16_t x, uint16_t y);
 
 #endif	/* BITMAP_H */
