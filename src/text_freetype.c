@@ -37,3 +37,8 @@
 #include "epd.h"
 #include "text.h"
 
+int
+text_add_string(void)
+{
+    return 0;
+}

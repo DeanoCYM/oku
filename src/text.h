@@ -36,7 +36,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-
 int text_add_string(void);
 
 /* Define the area to be used for writing text. Clears area setting
