@@ -35,51 +35,57 @@
 
 #include <ert_log.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "spi.h"		/* GPIO and SPI communication */
 #include "epd.h"		/* Device specific commands */
 #include "bitmap.h"		/* Bitmap manipulation */
-#include "text.h"
+#include "text.h"		/* Font rendering */
 
 int main(int argc, char *argv[])
 {
     log_info("Testing oku with %s.", argv[argc-1]);
 
-    /* Create bitmap buffer */
-    if (bitmap_create())
-	goto fail1;
-	    
-    /* Set some pixels */
-    for (uint16_t y = 0; y < epd_get_height(); y += 2)
-	for (uint16_t x = 0; x < epd_get_width(); x += 2)
-	    if (bitmap_px_toggle(x, y))
-		goto fail2;
+    /* Communication with display hardware is performed using the EPD
+       object and epd.h interface. */
+    EPD epd;
+    if ( epd_on(&epd) )		/* hardware initialisation */
+	exit(1);
 
+    /* Bitmap management is performed using the BITMAP object and
+       bitmap.h. The bitmap->buffer field contains the image buffer,
+       and so can be large - it must be allocated manually. */
+    BITMAP bmp;
+    if ( bitmap_create(&bmp, BLACK) ) /* match bitmap fields to device */
+	exit(1);
+
+    bmp.buffer = malloc(bmp.length); /* large image buffer */
+    if (!bmp.buffer) {
+	log_err("Memory error.");
+	exit(1);
+    }
     
-    if ( text_add_string() )
-	goto fail2;
+    if ( bitmap_clear(bmp) ) 	/* wipe the buffer */
+	exit(1);
 
-    /* Turn on the device and apply bitmap */
-    if (epd_on())
-	goto fail2;
-    if (epd_display(bitmap_get_raster(), bitmap_get_size()))
-	goto fail3;
-
+    /* Set some pixels */
+    for (uint16_t y = 0; y < bitmap.height; y += 2)
+	for (uint16_t x = 0; x < bitmap.width; x += 2)
+	    if ( bitmap_px_toggle(bitmap, x, y) )
+		exit(1);
+    
+    /* Display bitmap on device*/
+    if ( epd_display(epd, bitmap->buffer) )
+	exit(1);
+	    
     /* Clean up */
-    if (epd_off())
-	goto fail2;
+    if ( epd_off(epd) )
+	exit(1);
 
-    if (bitmap_destroy())
-	goto fail3;
+    if ( bitmap_destroy(bitmap) )
+	exit(1);
 
     log_info("Testing complete.");
-    return 0;
 
- fail3:
-    epd_off();
- fail2:
-    bitmap_destroy();
- fail1:
-    log_err("Testing failed");
-    return 1;
+    return 0;
 }
