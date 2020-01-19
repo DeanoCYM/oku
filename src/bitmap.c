@@ -169,6 +169,45 @@ bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
     return 0;
 }
 
+/* Function: bitmap_clear
+
+   Clear the bitmap by setting each pixel to white.
+
+   bmp - Bitmap object (bmp->buffer must be allocated)
+   black_colour - logical representation of a black pixel
+
+   Returns:
+   0 Success.
+   1 Invalid black_colour, errno set to EINVAL.
+   2 Invalid bitmap, errno set the ECANCELED.
+ */
+int
+bitmap_clear(BITMAP *bmp, int black_colour)
+{
+    if (black_colour != 0 && black_colour != 1) {
+	log_err("Invalid black representation.");
+	errno = EINVAL;
+	return 1;
+    }
+
+    if ( check_bitmap(bmp) ) {
+	log_err("Invalid bitmap.");
+	errno = ECANCELED;
+	return 2;
+    }
+
+    /* If black is represented by zero, each pixel in byte to white
+       0xFF. Do inverse if black represented by 1. */
+    for (unsigned int i = 0; i < bmp->length; ++i) {
+	bmp->buffer[i] = black_colour ? 0x00 : 0xFF;
+    }
+
+    log_info("Bitmap cleared.");
+
+    return 0;
+}
+
+
 
 /********************/
 /* Static Functions */
@@ -285,6 +324,6 @@ check_coordinates(size_t width, size_t height, uint16_t x, uint16_t y)
 static int
 check_bitmap(BITMAP *bmp)
 {
-    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->row_px == 0 ||
-	     bmp->row_px * bmp->pitch != bmp->pitch ) ? 1 : 0;
+    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->row_px == 0 )
+	? 1 : 0;
 }

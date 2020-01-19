@@ -109,7 +109,22 @@ int bitmap_create(BITMAP *bmp, size_t width, size_t height);
 int bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
 		     enum SET_PIXEL_MODE mode, int pixel_colour);
 
-/* Copy rectangle into bitmap buffer
+/* Function: bitmap_clear
+
+   Clear the bitmap by setting each pixel to white.
+
+   bmp - Bitmap object (bmp->buffer must be allocated)
+   black_colour - logical representation of a black pixel
+
+   Returns:
+   0 Success.
+   1 Invalid black_colour, errno set to EINVAL.
+   2 Invalid bitmap, errno set the ECANCELED.
+ */
+int bitmap_clear(BITMAP *bmp, int black_colour);
+/* Function: bitmap_copy
+
+   Copy rectangle into bitmap buffer.
 
    Returns:
    0 Success. 

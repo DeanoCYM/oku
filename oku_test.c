@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
        bitmap.h. The bitmap->buffer field contains the image buffer,
        and so can be large - it must be allocated manually. */
     BITMAP bmp;
-    if ( bitmap_create(&bmp, BLACK) ) /* match bitmap fields to device */
+    if ( bitmap_create(&bmp, epd.width, epd.height) )
 	exit(1);
 
     bmp.buffer = malloc(bmp.length); /* large image buffer */
@@ -65,24 +65,22 @@ int main(int argc, char *argv[])
 	exit(1);
     }
     
-    if ( bitmap_clear(bmp) ) 	/* wipe the buffer */
+    if ( bitmap_clear(&bmp, epd.black_colour) ) /* wipe the buffer */
 	exit(1);
 
     /* Set some pixels */
-    for (uint16_t y = 0; y < bitmap.height; y += 2)
-	for (uint16_t x = 0; x < bitmap.width; x += 2)
-	    if ( bitmap_px_toggle(bitmap, x, y) )
+    for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2)
+	for (uint16_t x = 0; x < bmp.row_px; x += 2)
+	    if ( bitmap_modify_px(&bmp, x, y,
+				  SET_PIXEL_TOGGLE, epd.black_colour) )
 		exit(1);
     
     /* Display bitmap on device*/
-    if ( epd_display(epd, bitmap->buffer) )
+    if ( epd_display(&epd, bmp.buffer, bmp.length) )
 	exit(1);
 	    
     /* Clean up */
-    if ( epd_off(epd) )
-	exit(1);
-
-    if ( bitmap_destroy(bitmap) )
+    if ( epd_off(&epd) )
 	exit(1);
 
     log_info("Testing complete.");

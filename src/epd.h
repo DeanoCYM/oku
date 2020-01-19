@@ -27,12 +27,13 @@
  * SOFTWARE.
  */
 
-/* Description:
- *
- * Communication with display device. Requires hardware specific
- * implementation.
- * 
- */
+/***************/
+/* Description */
+/***************/
+
+/* Communication with display device. Requires hardware specific
+   implementation.
+*/
 
 #ifndef EPD_H
 #define EPD_H
@@ -40,44 +41,85 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-/* Device logical representation of pixel colour. */
-enum PIXEL_COLOUR { BLACK, WHITE };
+/***********/
+/* Objects */
+/***********/
 
+/* Object: EPD
+
+   Electronic paper device (EPD) structure.
+*/
+typedef struct EPD {
+    int black_colour;		/* logical representation of black pixel */
+    uint16_t width;		/* Device pixel count in width */
+    uint16_t height;		/* Device pixel count  */
+} EPD;
+
+/*************/
 /* Interface */
+/*************/
 
-/* Fully initialises the device. Must be performed prior to any other
-   routines and to wake from sleep.
+/* Function: epd_on
+
+   Fully initialises the device. Must be performed prior to any other
+   epd routines as well as to wake from sleep. Device remains powered
+   and initialised!  Use epd_off() to ensure device is not powered for
+   long period of time as this can damage some devices.
+
+   epd - Electronic paper display object.
 
    Returns:
    0  Success, device initialised.
-   1  Fail, errno set to ECOMM. */
-int epd_on(void);
+   1  Fail, errno set to ECOMM.
+*/
+int epd_on(EPD *epd);
 
-/* Displays provided bitmap on device display. Bitmap length must
+/* Function: epd_display
+
+   Displays provided bitmap on device display. Bitmap length must
    equal that of the display. Device remains powered and initialised!
    Use epd_off() to ensure device is not powered for long period of
    time as this can damage some devices.
 
+   epd - Electronic paper display object.
+
+   bitmap - A pointer to buffer containing image data (see bitmap.h,
+   particularly struct BITMAP). The first bit is the origin at the top
+   left corner of the device. The order of their storage within each
+   byte is most significant bit to least significant bit. The bitmap
+   proceeeds from left to right, packed 8 to a byte, don't care bits
+   to fill out the last byte in the row if the width is not a factor
+   of 8.  Each bit represents a pixel: 1 is black, 0 is white.
+
+   len - 1 dimensional length of bitmap in bytes.
+
    Returns:
    0 Success.
    1 Fail, invalid bitmap length, errno set to EINVAL.
-   2 Fail, communication error, errno set to ECOMM. */
-int epd_display(uint8_t *bitmap, size_t len);
+   2 Fail, communication error, errno set to ECOMM.
+*/
+int epd_display(EPD *epd, uint8_t *bitmap, size_t len);
 
-/* Resets the device screen to a white background. */
-void epd_reset(void);
+/* Function: epd_reset
 
-/* Put device to sleep (some hardware can be damaged if powered for
-   extended periods.
+   Resets the device screen to a white background. The device remains
+   active as if epd_on() has been run.
 
-   Returns: 0  Success.
-            1  Failed to enter deep sleep mode, errno set to EBUSY. */
-int epd_off(void);
+   epd - Electronic paper display object.
+*/
+int epd_reset(EPD *epd);
 
-/* Returns width of device screen in pixels. */
-uint16_t epd_get_width(void);
+/* Function: epd_off
 
-/* Returns height of device screen in pixels. */
-uint16_t epd_get_height(void);
+   Put device into a safe sleep state, note some hardware can be
+   damaged if powered on for extended periods.
+
+   epd - Electronic paper display object.
+
+   Returns:
+   0 Success.
+   1 Failed to reset, errno set to EBUSY or ECOMM.
+*/
+int epd_off(EPD *epd);
 
 #endif /* EPD_H */
