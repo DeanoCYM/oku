@@ -57,7 +57,9 @@
 #include <errno.h>
 #include <stdint.h>
 
-/* Device information */
+/**********************/
+/* Device Information */
+/**********************/
 #define DEVICE "Waveshare 2.9 B&W"
 #define WIDTH  128 		/* Display width (px) */
 #define HEIGHT 296		/* Display height (px) */
@@ -65,9 +67,25 @@
 #define SPI_CLK_HZ 32000000	/* SPI clock speed */
 #define RESET_DELAY 200		/* GPIO reset pin hold time (ms) */
 #define BUSY_DELAY 300		/* GPIO reset pin hold time (ms) */
+#define BLACK_COLOUR 1		/* Logical representation of black */
 
-/* Determines array length (stack only!) */
+/****************************/
+/* CPP Function like macros */
+/****************************/
+
+/* Function like macro: ARRSIZE
+
+   Determines array length (stack only!).
+
+   X - Array declared with memory on stack.
+
+   Returns: size_t size of array in bytes.
+*/
 #define ARRSIZE(X) (sizeof(X)/sizeof(X[0]))
+
+/*************/
+/* Constants */
+/*************/
 
 /* BCM GPIO Pin numbers */
 enum PIN { PIN_RST  = 17, PIN_DC   = 25,
@@ -114,44 +132,61 @@ uint8_t lut_full_update[] =
 //	  0x00, 0x00, 0x00, 0x00, 0x13, 0x14, 0x44, 0x12,
 //	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-/*** Forward Declarations ***/
-static int init_gpio(void);
-static int init_spi(void);
+/************************/
+/* Forward Declarations */
+/************************/
+static int init_gpio();
+static int init_spi(int spi_channel, int spi_clk_hz);
 static int write_command(enum COMMAND command);
 static int write_data(uint8_t *data, size_t len);
-static int push_shift_register(void);
+static int push_shift_register(void) ;
 static int push_lut(uint8_t *lut);
-static int wait_while_busy(void);
+static int wait_while_busy(unsigned int busy_delay);
 static int ram_set_window(uint16_t xmin, uint16_t xmax,
 			  uint16_t ymin, uint16_t ymax);
-static int ram_set_cursor(uint16_t x, uint16_t y);
-static int ram_write(uint8_t *bitmap);
-static int ram_load(void);
+static int  ram_set_cursor(uint16_t x, uint16_t y);
+static int ram_write(uint8_t *bitmap, uint16_t width, uint16_t height);
+static int ram_load(unsigned int busy_delay);
 
-/*** Interface Functions  ***/
+/***********************/
+/* Interface Functions */
+/***********************/
 
-/* Fully initialises device, starting SPI communications and setting
+/* Function: epd_on
+
+   Fully initialises device, starting SPI communications and setting
    the appropriate pins to the correct modes.
+
+   epd - Electronic paper display device handle.
 
    Returns:
    0  Success.
    1  Fail, errno set to ECOMM */
 int
-epd_on(void)
+epd_on(EPD *epd)
 {
     log_info("Initialising %s E Paper Device", DEVICE);
 
-    if (init_gpio()) goto fail1; /* Initiates GPIO pins */
-    if (init_spi())  goto fail1; /* Initiates SPI communications */
+    epd->black_colour = BLACK_COLOUR;
+    epd->width = WIDTH;
+    epd->height = HEIGHT;
+    epd->spi_channel = SPI_CHANNEL;
+    epd->spi_clk_hz = SPI_CLK_HZ;
+    epd->reset_delay = RESET_DELAY;
+    epd->busy_delay = BUSY_DELAY;
 
-    epd_reset();		/* Wipes screen */
+    if ( init_gpio() ) goto fail1; /* Initiates GPIO pins */
+    if ( init_spi(epd->spi_channel, epd->spi_clk_hz) )
+	goto fail1; 
+
+    epd_reset(epd);		/* Wipes screen */
 
     if (push_shift_register())     goto fail1; /* Startup commands */
     if (push_lut(lut_full_update)) goto fail1; /* Sends look up table */
 
     /* RAM to hold full bitmap, representing pixels from origin to
        maximum dimensions */
-    ram_set_window(0, WIDTH, 0, HEIGHT);
+    ram_set_window(0, epd->width, 0, epd->height);
 
     return 0;
 
@@ -161,7 +196,9 @@ epd_on(void)
     return 1;
 }
 
-/* Displays provided bitmap on epaper device display. Bitmap length
+/* Function: epd_display
+
+   Displays provided bitmap on epaper device display. Bitmap length
    must equal that of the display.
 
    Returns:
@@ -169,21 +206,23 @@ epd_on(void)
    1 Fail, invalid bitmap length, errno set to EINVAL.
    2 Fail, SPI comms, errno set to ECOMM */
 int
-epd_display(uint8_t *bitmap, size_t len)
+epd_display(EPD *epd, uint8_t *bitmap, size_t len)
 {
     log_info("Updating device display with %zu bitmap.", len);
 
     /* 1 byte can represent 8px across the width. However, an extra
        byte is required on each row if the number of px across the
        width is not a factor of 8.  */
-    size_t width = (WIDTH % 8 == 0)
+    size_t width = (epd->width % 8 == 0)
 	? WIDTH / 8
 	: WIDTH / 8 + 1; 
 
-    if (len != width * HEIGHT)  goto fail1;
+    if (len != width * epd->height)  goto fail1;
 
-    if (ram_write(bitmap))      goto fail2;
-    if (ram_load())             goto fail2;
+    if (ram_write(bitmap, epd->width, epd->height))
+	goto fail2;
+    if (ram_load(epd->busy_delay))
+	goto fail2;
 
     return 0;
  fail1:
@@ -196,33 +235,38 @@ epd_display(uint8_t *bitmap, size_t len)
     return 2;
 }
 
-/* Resets the epaper display screen using the GPIO reset pin. */
-void
-epd_reset(void)
+/* Function: epd_reset.
+
+   Resets the epaper display screen using the GPIO reset pin.
+*/
+int
+epd_reset(EPD *epd)
 {
     log_info("Resetting device (%s) display", DEVICE);
 
     spi_gpio_write(PIN_RST, GPIO_LEVEL_HIGH);
-    spi_delay(RESET_DELAY);
+    spi_delay(epd->reset_delay);
     spi_gpio_write(PIN_RST, GPIO_LEVEL_LOW);
-    spi_delay(RESET_DELAY);
+    spi_delay(epd->reset_delay);
     spi_gpio_write(PIN_RST, GPIO_LEVEL_HIGH);
-    spi_delay(RESET_DELAY);
-    return;
+    spi_delay(epd->reset_delay);
+    return 0;
 }
 
-/* Put device into deep sleep.
+/* Function: epd_off
+
+   Put device into deep sleep.
 
    Returns: 0  Success.
             1  Failed to enter deep sleep mode, errno set to EBUSY */
 int
-epd_off(void)
+epd_off(EPD *epd)
 {
     log_info("Device (%s) entering deep sleep mode", DEVICE);
 
     uint8_t dsm[] = { 0x01 };
 
-    if (wait_while_busy()) {
+    if (wait_while_busy(epd->busy_delay)) {
 	log_err("Failed to sleep device");
 	errno = EBUSY;
 	return 1;
@@ -234,31 +278,24 @@ epd_off(void)
     return 0;
 }
 
-/* Returns width of epaper device screen in pixels */
-uint16_t
-epd_get_width(void)
-{
-    return WIDTH;
-}
+/********************/
+/* Static Functions */
+/********************/
 
-/* Returns height of epaper device screen in pixels */
-uint16_t
-epd_get_height(void)
-{
-    return HEIGHT;
-}
+/* Static Function: init_gpio
 
-/*** Static Functions ****/
+   Initialises GPIO pins and sets the correct GPIO operating
+   mode. Requirements documented in Waveshare manual page 9/26.
 
-/* Initialises GPIO pins and sets the correct GPIO operating
- * mode. Requirements documented in Waveshare manual page 9/26. */
+   Returns:
+   0 Success.
+   1 Failed to initialise gpio.
+*/
 static int
-init_gpio(void)
+init_gpio()
 {
-    log_info("Initialising %s GPIO pins", DEVICE);
-
     if (spi_init_gpio()) {
-	log_err("Failed to initialise %s GPIO pins", DEVICE);
+	log_err("Could not initialise GPIO");
 	return 1;
     }
     
@@ -270,29 +307,32 @@ init_gpio(void)
     return 0;
 }
 
-/* Initiates SPI communication with epaper display unit.
+/* Static function: init_spi
+
+   spi_channel - SPI communication channel.
+   spi_clock_hz - SPI clock speed in Hz.
+
+   Initiates SPI communication with epaper display unit.
 
    Returns:
    0 Success.
-   1 Fail. */
+   1 Failed to initialise spi interface.
+*/
 static int
-init_spi(void)
+init_spi(int spi_channel, int spi_clk_hz)
 {
-    log_info("Initialising %s SPI communication", DEVICE);
-
-    if (spi_open(SPI_CHANNEL, SPI_CLK_HZ)) {
-	log_err("Failed to initialise %s SPI communication", DEVICE);
-	return 1;
-    }
-
-    return 0;
+    return spi_open(spi_channel, spi_clk_hz);
 }
 
-/* Sets the GPIO pins for command transfer and transfers given command
+/* Static function: write_command.
+
+   Sets the GPIO pins for command transfer and transfers given command
    to epaper device.
 
-   Returns: 0 on success.
-   1 on failure, sets errno to EIO */
+   Returns:
+   0 on success.
+   1 on comms failure.
+ */
 static int
 write_command(enum COMMAND command)
 {
@@ -305,7 +345,6 @@ write_command(enum COMMAND command)
 
     if (spi_write(&byte, 1)) {
 	log_err("Failed to send command byte to device %s", DEVICE);
-	errno = EIO;
 	return 1;
     }
     
@@ -314,11 +353,13 @@ write_command(enum COMMAND command)
     return 0;
 }
 
-/* Sets the GPIO pins for data transfer and transfers given
+/* Function: write_data.
+
+   Sets the GPIO pins for data transfer and transfers given
    data to epaper device.
 
    Returns: 0  on success.
-   1  on failure, sets errno to EIO */
+   1 on comms failure */
 static int
 write_data(uint8_t *data, size_t len)
 {
@@ -328,7 +369,6 @@ write_data(uint8_t *data, size_t len)
 
     if (spi_write(data, len)) {
 	log_err("Failed to send data to device %s", DEVICE);
-	errno = EIO;
 	return 1;
     }
     
@@ -337,10 +377,13 @@ write_data(uint8_t *data, size_t len)
     return 0;
 }
 
-/* Write the required data to the device shift register.
+/* Static function: push_shift_register.
 
-   Returns: 0, on success.
-   1 SPI write error, sets errno to EIO . */
+   Write the required data to the device shift register.
+
+   Returns:
+   0, on success.
+   1 SPI write error. */
 static int
 push_shift_register(void) 
 {
@@ -372,14 +415,16 @@ push_shift_register(void)
     return 0;
  fail1:
     log_err("Failed to write to device (%s) shift register", DEVICE);
-    errno = EIO;
     return 1;
 }
 
-/* Send 30B look up table to device.
+/* Static Function: push_lut
 
-   Returns: 0 successful write.
-   1 SPI write error, sets errno EIO. */
+   Send 30B look up table to device.
+
+   Returns:
+   0 successful write.
+   1 SPI write error. */
 static int
 push_lut(uint8_t *lut)
 {
@@ -389,16 +434,20 @@ push_lut(uint8_t *lut)
     return 0;
  fail1:
     log_err("Failed to update device (%s) LUT", DEVICE);
-    errno = EIO;
     return 1;
 }
     
-/* Pauses process until busy pin reads low or 100 x BUSY_DELAY
+/* Static Function: wait_while_busy
+
+   Pauses process until busy pin reads low or 100 x busy_delay
    seconds, which ever occurs first.
+
+   busy_delay - delay time (s)
+
    Returns: 0 on success, device ready, GPIO busy pin is low.
    1 on error, device busy, sets errno to EBUSY */
 static int
-wait_while_busy(void)
+wait_while_busy(unsigned int busy_delay)
 {
     int t = 0;
     while (spi_gpio_read(PIN_BUSY) == GPIO_LEVEL_HIGH) {
@@ -411,20 +460,26 @@ wait_while_busy(void)
 	    return 1;
 	}
 	 
-	spi_delay(BUSY_DELAY);
+	spi_delay(busy_delay);
 	++t;
     }
 	
     return 0;
 }
 
-/* Sets the RAM address start and end positions for the device. The range,
+/* Static function: ram_set_window.
+
+   Sets the RAM address start and end positions for the device. The range,
    and its corresponding area, determines the e-paper display
    window. Parameters should provided as pixel coordinates from origin of
    display.
 
-   Returns: 0 Success.  
-            1 Fail, errno set to ECOMM */
+   xmin,xmax,ymin,ymax - Cartesian coordinates from origin to extrema.
+   
+   Returns:
+   0 Success.  
+   1 Fail, errno set to ECOMM
+*/
 static int
 ram_set_window(uint16_t xmin, uint16_t xmax,
 	       uint16_t ymin, uint16_t ymax)
@@ -452,7 +507,9 @@ ram_set_window(uint16_t xmin, uint16_t xmax,
     errno = ECOMM;
     return 1;
 }
-/* Sets the RAM cursor for next bitmap write. Takes coordinates that
+/* Static function: ram_set_cursor.
+
+   Sets the RAM cursor for next bitmap write. Takes coordinates that
    represent number of pixels from display origin.
 
    Returns: 0  Success.
@@ -492,13 +549,13 @@ ram_set_cursor(uint16_t x, uint16_t y)
    Returns 0  Success.
            1  Fail, SPI comms failure, errno set to ECOMM. */
 static int
-ram_write(uint8_t *bitmap)
+ram_write(uint8_t *bitmap, uint16_t width, uint16_t height)
 {
     /* Bitmap data must be passed row by row for this device. The
        cursor must be set at the start of each new row. */
-    size_t row_bytes = (WIDTH % 8) ? 1 + (WIDTH / 8) : WIDTH / 8;
+    size_t row_bytes = (width % 8) ? 1 + (width / 8) : width / 8;
 
-    for (size_t y = 0; y < HEIGHT; ++y) {
+    for (size_t y = 0; y < height; ++y) {
 	if (ram_set_cursor(0, y))
 	    goto fail1;
 
@@ -522,14 +579,16 @@ ram_write(uint8_t *bitmap)
     return 1;
 }
 
-/* Load the bitmap stored in the RAM window, defined by
+/* Static function: ram_load.
+
+   Load the bitmap stored in the RAM window, defined by
    ram_set_window() to the epaper device display.
 
    Returns: 0  Success.
             1  Fail, write error, errno set to ECOMM
             2  Fail, device busy, errno set to EBUSY */
 static int
-ram_load(void)
+ram_load(unsigned int busy_delay)
 {
     uint8_t duc2[] = { 0xC4 };
 
@@ -538,7 +597,7 @@ ram_load(void)
     if (write_command(MASTER_ACTIVATION))          goto fail1;
     if (write_command(TERMINATE_FRAME_READ_WRITE)) goto fail1;
 
-    if (wait_while_busy()) goto fail2;
+    if (wait_while_busy(busy_delay)) goto fail2;
 
     return 0;
  fail1:

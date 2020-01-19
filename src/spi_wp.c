@@ -151,17 +151,6 @@ spi_write(uint8_t *data, size_t len)
     }
 
     return 0;
-
-    /* for (size_t i = 0; i < len; ++i) { */
-    /* 	res = wiringPiSPIDataRW(channel, data + i, 1); */
-    /* 	if (res < 0) { */
-    /* 	    log_err("SPI write error"); */
-    /* 	    errno = EIO; */
-    /* 	} */
-    /* } */
-
-    /* return (res < 0) ? 1 : 0; */
-
 }
 	      
 

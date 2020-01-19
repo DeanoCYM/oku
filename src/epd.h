@@ -55,7 +55,7 @@ typedef struct EPD {
     uint16_t height;		/* Device pixel count  */
     int spi_channel;		/* SPI Channel (0 or 1) */
     int spi_clk_hz;		/* SPI clock speed */
-    int reset_delay;		/* GPIO reset pin hold time (ms) */
+    unsigned int reset_delay;	/* GPIO reset pin hold time (ms) */
     int busy_delay;		/* GPIO reset pin hold time (ms) */
 } EPD;
 
