@@ -88,6 +88,10 @@ epd_on(EPD *epd)
     epd->black_colour = 1;
     epd->width = WIDTH;
     epd->height = HEIGHT;
+    epd->spi_channel = 0;
+    epd->spi_clk_hz = 0;
+    epd->reset_delay = 0;
+    epd->busy_delay = 0;
 
     if (pbm) {			/* file already open */
 	log_err("File %s already open", FILENAME);

@@ -53,6 +53,10 @@ typedef struct EPD {
     int black_colour;		/* logical representation of black pixel */
     uint16_t width;		/* Device pixel count in width */
     uint16_t height;		/* Device pixel count  */
+    int spi_channel;		/* SPI Channel (0 or 1) */
+    int spi_clk_hz;		/* SPI clock speed */
+    int reset_delay;		/* GPIO reset pin hold time (ms) */
+    int busy_delay;		/* GPIO reset pin hold time (ms) */
 } EPD;
 
 /*************/
@@ -66,7 +70,7 @@ typedef struct EPD {
    and initialised!  Use epd_off() to ensure device is not powered for
    long period of time as this can damage some devices.
 
-   epd - Electronic paper display object.
+   epd - Electronic paper display handle.
 
    Returns:
    0  Success, device initialised.

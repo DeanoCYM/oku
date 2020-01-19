@@ -80,6 +80,9 @@ int main(int argc, char *argv[])
 	exit(1);
 	    
     /* Clean up */
+    free(bmp.buffer);
+    bmp.buffer = NULL;
+
     if ( epd_off(&epd) )
 	exit(1);
 
