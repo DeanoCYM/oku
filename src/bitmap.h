@@ -130,6 +130,7 @@ int bitmap_clear(BITMAP *bmp, int black_colour);
    0 Success. 
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL. */
-//int bitmap_copy(uint8_t *bitmap, uint16_t x, uint16_t y);
+int bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin);
 
 #endif	/* BITMAP_H */
+

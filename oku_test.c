@@ -75,11 +75,10 @@ int main(int argc, char *argv[])
 				  SET_PIXEL_TOGGLE, epd.black_colour) )
 		exit(1);
     
-    /* Display bitmap on device*/
+    /* Display bitmap on device */
     if ( epd_display(&epd, bmp.buffer, bmp.length) )
 	exit(1);
-	    
-    /* Clean up */
+
     free(bmp.buffer);
     bmp.buffer = NULL;
 

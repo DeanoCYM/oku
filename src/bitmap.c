@@ -207,8 +207,81 @@ bitmap_clear(BITMAP *bmp, int black_colour)
     return 0;
 }
 
+/* Function: bitmap_copy
 
+   Copy rectangle into bitmap buffer. It is likely that the two
+   buffers are not byte aligned.
 
+   The x and y coordinates are used to determine rectangle's target
+   origin within bmp. The x coordinate is used to determine the bit
+   number of the starting point in the output buffer.
+
+   Mask only the required bits from the input buffer.
+
+   e.g. let x == 14
+   x % 8 = 6, 0xFF << 6 = 1100 0000
+
+   The mask is used to remove the unneeded bits from the end of the
+   input byte and store the results in a temporary byte.
+
+   mask &      byte -> tmp
+   1110 0000 & 1010 1010 -> 1010 0000
+
+   The data in the tmp byte needs to be shifted to the right to
+   reflect its intended position in the output byte.
+
+   tmp >> (x % 8) -> tmp
+   1010 0000 >> (5 % 8) -> 0000 0101
+
+   The data is then copied to the output byte again using the bitmask
+   to avoid data loss from previous bits.
+
+   A similar proceedure is used to mask and copy the remaining
+   uncopied data in the input byte to the next output byte.
+
+   Returns:
+   0 Success.
+   1 Critical bitmap buffer error, errno set to ECANCELED.
+   2 At least one coordinate out of range, errno set to EINVAL. */
+int
+bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
+{
+    /* Retrieve the start of input rectangle and the target origin in
+       output */
+    uint8_t *in = rectangle->buffer;
+    uint8_t *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
+
+    size_t count;
+    uint8_t in_shifted, out_masked, mask;
+    while ( count < rectangle->length ) {
+
+	mask = 0xFF << ( xmin % 8 );
+	in_shifted = ( mask & *in ) >> ( xmin % 8 );
+    
+	/* Clear bits to be overwritten in out using mask. Write the
+	   data from the temporary byte. */
+	out_masked = *out & mask;
+	*out = out_masked & in_shifted;
+	++out;			/* Current output byte complete  */
+
+	/* The data from input byte masked off previously needs to be
+	   copied to the start of the next byte of the output. */
+	in_shifted = ( ~mask & *in ) << ( 8 - ( xmin % 8 ) );
+	out_masked = *out & (~mask);
+	*out = out_masked & in_shifted;
+	++in;			/* Current input byte complete */
+
+	/* Increment bytes written counter */
+	++count;
+
+	/* Increment one line in the output buffer if the end of input
+	   buffer row */
+	if ( count % rectangle->pitch == 0 )
+	    out += bmp->pitch;
+    }
+    
+    return 0;
+}
 /********************/
 /* Static Functions */
 /********************/
