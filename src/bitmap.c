@@ -103,12 +103,14 @@ bitmap_create(BITMAP *bmp, size_t width, size_t height)
     bmp->row_px = width;
     bmp->buffer = NULL;		/* must be manually assigned */
 
-    log_info("For %zuW x %zuH px device,\n"
-	     "New %zuW x %zuH px bitmap created (Total %zuB),\n"
-	     "%zuBit(s) unused in each %zuB row.  ",
+    log_info("%zuW x %zuH px device:\n\t"
+	     "New %zuW x %zuH px bitmap created (Total %zuB),\n\t"
+	     "%zuBit(s) unused in each %zuB row.",
 	     width, height,
 	     bmp->pitch * 8, bmp->length / bmp->pitch, bmp->length,
 	     bmp->row_px % 8, bmp->pitch);
+
+    log_debug("TEST");
 
     return 0;
 }
@@ -213,31 +215,11 @@ bitmap_clear(BITMAP *bmp, int black_colour)
    buffers are not byte aligned.
 
    The x and y coordinates are used to determine rectangle's target
-   origin within bmp. The x coordinate is used to determine the bit
-   number of the starting point in the output buffer.
+   origin within bmp. The bits in input rectangle are then correctly
+   aligned and copied into the bitmap.
 
-   Mask only the required bits from the input buffer.
-
-   e.g. let x == 14
-   x % 8 = 6, 0xFF << 6 = 1100 0000
-
-   The mask is used to remove the unneeded bits from the end of the
-   input byte and store the results in a temporary byte.
-
-   mask &      byte -> tmp
-   1110 0000 & 1010 1010 -> 1010 0000
-
-   The data in the tmp byte needs to be shifted to the right to
-   reflect its intended position in the output byte.
-
-   tmp >> (x % 8) -> tmp
-   1010 0000 >> (5 % 8) -> 0000 0101
-
-   The data is then copied to the output byte again using the bitmask
-   to avoid data loss from previous bits.
-
-   A similar proceedure is used to mask and copy the remaining
-   uncopied data in the input byte to the next output byte.
+   TODO: Check rectangle can fit into bmp.
+         Correctly handle unused bits at end of pitch.
 
    Returns:
    0 Success.
@@ -246,40 +228,44 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 int
 bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 {
-    /* Retrieve the start of input rectangle and the target origin in
-       output */
+    /* Start of input rectangle and its origin in output */
     uint8_t *in = rectangle->buffer;
     uint8_t *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
 
-    size_t count;
-    uint8_t in_shifted, out_masked, mask;
+    // check that the rectangle fits inside bmp.
+
+    uint8_t bitnumber = xmin % 8;            /* Position of misalignment */
+    uint8_t maskprev = ~(0xFF >> bitnumber); /* Protects previous byte */
+    uint8_t masknext =  (0xFF << bitnumber); /* Protects next byte */
+    size_t count = 0;			     /* Bytes to output */
+
     while ( count < rectangle->length ) {
 
-	mask = 0xFF << ( xmin % 8 );
-	in_shifted = ( mask & *in ) >> ( xmin % 8 );
-    
-	/* Clear bits to be overwritten in out using mask. Write the
-	   data from the temporary byte. */
-	out_masked = *out & mask;
-	*out = out_masked & in_shifted;
-	++out;			/* Current output byte complete  */
+	/* Copy as many leftmost bits in input to the rightmost in
+	   output as possible consdering misalignment. Increment to
+	   next output byte and copy the remaining bits. Masks prevent
+	   data being overwritten. */
+	*out = (*out & maskprev) | (*in >> bitnumber);
+	++out;
+	*out = (*out & masknext) | (*in << bitnumber);
+	++in;
 
-	/* The data from input byte masked off previously needs to be
-	   copied to the start of the next byte of the output. */
-	in_shifted = ( ~mask & *in ) << ( 8 - ( xmin % 8 ) );
-	out_masked = *out & (~mask);
-	*out = out_masked & in_shifted;
-	++in;			/* Current input byte complete */
+	++count;		/* one full byte of input copied */
 
-	/* Increment bytes written counter */
-	++count;
-
-	/* Increment one line in the output buffer if the end of input
-	   buffer row */
-	if ( count % rectangle->pitch == 0 )
-	    out += bmp->pitch;
+	/* To preserve horizontal alignment, when the end of one row
+	   reached in rectangle, also start new line in bitmap. */
+	if (count % rectangle->pitch == 0)
+	    out += bmp->pitch - rectangle->pitch;
     }
-    
+
+    log_info("Rectangle copy complete:\n\t"
+	     "Location in bitmap: (%u,%u) -- (%zu,%zu).\n\t"
+	     "Rectangle dimensions: %zuW x %zuH px, (%zuB).",
+	     xmin, ymin, rectangle->row_px + xmin,
+	     (rectangle->length / rectangle->pitch) + ymin,
+	     rectangle->row_px, rectangle->length / rectangle->pitch,
+	     rectangle->length);
+
     return 0;
 }
 /********************/

@@ -133,4 +133,3 @@ int bitmap_clear(BITMAP *bmp, int black_colour);
 int bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin);
 
 #endif	/* BITMAP_H */
-

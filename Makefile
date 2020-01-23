@@ -34,9 +34,12 @@ clean:
 	rm -f display.pbm
 tags:
 	etags src/*.c src/*.h
+test: DEVICE=emulated
+test: LOGLEVEL=3
 test: clean all
 	-valgrind --leak-check=full --errors-for-leak-kinds=all \
 	--error-exitcode=33 --quiet ./$(TARGET)
+	-mupdf ./display.pbm
 sync: clean
 	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)
 emulate: test 

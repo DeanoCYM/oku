@@ -44,7 +44,7 @@
 
 int main(int argc, char *argv[])
 {
-    log_info("Testing oku with %s.", argv[argc-1]);
+    log_debug("Testing oku with %s.", argv[argc-1]);
 
     /* Communication with display hardware is performed using the EPD
        object and epd.h interface. */
@@ -69,12 +69,24 @@ int main(int argc, char *argv[])
 	exit(1);
 
     /* Set some pixels */
-    for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2)
-	for (uint16_t x = 0; x < bmp.row_px; x += 2)
-	    if ( bitmap_modify_px(&bmp, x, y,
-				  SET_PIXEL_TOGGLE, epd.black_colour) )
-		exit(1);
+    /* for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2) */
+    /* 	for (uint16_t x = 0; x < bmp.row_px; x += 2) */
+    /* 	    if ( bitmap_modify_px(&bmp, x, y, */
+    /* 				  SET_PIXEL_TOGGLE, epd.black_colour) ) */
+    /* 		exit(1); */
     
+    /* Apply a black rectangle */
+    uint8_t rect[] = { 0xFF, 0xFF, 0xFF, 0xFF,
+		       0xFF, 0xFF, 0xFF, 0xFF };
+
+    BITMAP rectangle;
+    rectangle.buffer = rect;
+    rectangle.length = 8;
+    rectangle.pitch  = 4;
+    rectangle.row_px = rectangle.pitch * 8;
+
+    bitmap_copy(&bmp, &rectangle, 2, 100);
+
     /* Display bitmap on device */
     if ( epd_display(&epd, bmp.buffer, bmp.length) )
 	exit(1);
@@ -85,7 +97,7 @@ int main(int argc, char *argv[])
     if ( epd_off(&epd) )
 	exit(1);
 
-    log_info("Testing complete.");
+    log_debug("Testing complete.");
 
     return 0;
 }
