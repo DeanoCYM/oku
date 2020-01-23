@@ -69,11 +69,11 @@ int main(int argc, char *argv[])
 	exit(1);
 
     /* Set some pixels */
-    /* for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2) */
-    /* 	for (uint16_t x = 0; x < bmp.row_px; x += 2) */
-    /* 	    if ( bitmap_modify_px(&bmp, x, y, */
-    /* 				  SET_PIXEL_TOGGLE, epd.black_colour) ) */
-    /* 		exit(1); */
+    for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 10)
+    	for (uint16_t x = 0; x < bmp.row_px; x += 1)
+    	    if ( bitmap_modify_px(&bmp, x, y,
+    				  SET_PIXEL_BLACK, epd.black_colour) )
+    		exit(1);
     
     /* Apply a black rectangle */
     uint8_t rect[] = { 0xFF, 0xFF, 0xFF, 0xFF,

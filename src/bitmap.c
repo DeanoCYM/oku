@@ -110,8 +110,6 @@ bitmap_create(BITMAP *bmp, size_t width, size_t height)
 	     bmp->pitch * 8, bmp->length / bmp->pitch, bmp->length,
 	     bmp->row_px % 8, bmp->pitch);
 
-    log_debug("TEST");
-
     return 0;
 }
 
@@ -164,8 +162,8 @@ bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
     
     switch (mode) {
     case SET_PIXEL_TOGGLE: px_toggle(byte, bitmask); break;
-    case SET_PIXEL_BLACK:  px_set(byte, bitmask);    break;
-    case SET_PIXEL_WHITE:  px_unset(byte, bitmask);  break;
+    case SET_PIXEL_BLACK:  px_unset(byte, bitmask);  break;
+    case SET_PIXEL_WHITE:  px_set(byte, bitmask);    break;
     }
 	
     return 0;
@@ -200,9 +198,8 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 
     /* If black is represented by zero, each pixel in byte to white
        0xFF. Do inverse if black represented by 1. */
-    for (unsigned int i = 0; i < bmp->length; ++i) {
+    for (unsigned int i = 0; i < bmp->length; ++i)
 	bmp->buffer[i] = black_colour ? 0x00 : 0xFF;
-    }
 
     log_info("Bitmap cleared.");
 
@@ -234,20 +231,20 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 
     // check that the rectangle fits inside bmp.
 
-    uint8_t bitnumber = xmin % 8;            /* Position of misalignment */
-    uint8_t maskprev = ~(0xFF >> bitnumber); /* Protects previous byte */
-    uint8_t masknext =  (0xFF << bitnumber); /* Protects next byte */
-    size_t count = 0;			     /* Bytes to output */
+    uint8_t bitnumber = xmin % 8; /* Position of misalignment */
+    size_t count = 0;		  /* Bytes to output */
+    uint8_t mask;		  /* Selects data to overwrite */
 
     while ( count < rectangle->length ) {
-
 	/* Copy as many leftmost bits in input to the rightmost in
-	   output as possible consdering misalignment. Increment to
-	   next output byte and copy the remaining bits. Masks prevent
-	   data being overwritten. */
-	*out = (*out & maskprev) | (*in >> bitnumber);
+	   output as possible consdering misalignment. */
+	mask = ~(0xFF >> bitnumber);
+	*out = *out & mask | *in >> bitnumber;
 	++out;
-	*out = (*out & masknext) | (*in << bitnumber);
+
+	/* Copy remaining bits in input to leftmost bits in output */
+	mask = ~(0xFF << xmin % 8);
+	*out = *out & mask | *in << bitnumber;
 	++in;
 
 	++count;		/* one full byte of input copied */
