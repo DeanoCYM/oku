@@ -225,7 +225,7 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 int
 bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 {
-    /* Check vaid bitmaps */
+    /* Ensure bitmaps are assigned and non 0. */
     if ( check_bitmap(bmp) || check_bitmap(rectangle) ) {
 	log_err("Invalid bitmap.");
 	errno = ECANCELED;
@@ -238,6 +238,7 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
     uint16_t out_width  = bmp->row_px;
     uint16_t out_height = bmp->length / bmp->pitch;
 
+    /* Ensure rectangle fits inside bmp */
     if ( xmin + in_width  >= out_width  ||
 	 ymin + in_height >= out_height ) {
 	log_err("Cannot copy, input dimensions exceed bitmap limits.");
@@ -245,44 +246,25 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 	return 2;
     }
 
-    /* Start of input rectangle and its origin in output */
+    /* Determine the start of input rectangle and its origin in
+       output. */
     uint8_t *in = rectangle->buffer;
     uint8_t *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
 
-    // check that the rectangle fits inside bmp.
-
-    uint8_t bitnumber = xmin % 8; /* Position of misalignment */
-    uint8_t tmp_in = 0x00;	  /* Temporary data storage */
-    uint8_t mask = 0x00;	  /* Selects data to overwrite */
-    size_t count = 0;		  /* Bytes to output */
+    uint8_t bitnumber = xmin % 8; /* Bit position of misalignment */
+    size_t count = 0;		  /* Bytes from input written to output */
 
     while ( count < rectangle->length ) {
+	/* Correct misalignment in input byte. Wipe bits to be
+	   replaced in output and combine with OR. */
+	*out = (*in >> bitnumber) |  (*out & ~(0xFF >> bitnumber));
 
-	/* Correct misalignment in input byte. This will lose some
-	   data at the least significant bit. */
-	tmp_in = *in >> bitnumber;
-	    
-	/* Prepare output byte by unsetting bits to be overwritten
-	   using a mask.*/
-	mask = ~(0xFF >> bitnumber);
-	*out &= mask;
-
-	/* Combine shifted input byte with output byte. */
-	*out |= tmp_in;
-
-	/* Retreive bits from input byte previously ignored. */
-	tmp_in = *in << 8 - bitnumber;
-
-	/* Prepare next byte in output for data copy by unsetting bits
-	   to be overwritten.  */
+	/* Retreive bits from input byte previously ignored. Wipe bits
+	   to be repaced in next output byte and combine with OR. */
 	++out;
-	mask = 0xFF >> bitnumber;
-	*out &= mask;
-	
-	/* Combine shifted input byte with output byte. */
-	*out |= tmp_in;
+	*out = (*in << 8 - bitnumber) | (*out & 0xFF >> bitnumber);
 
-	/* one full byte of input copied */
+	/* One full byte of input copied increment appropriately. */
 	++in;
 	++count;
 
