@@ -69,23 +69,22 @@ int main(int argc, char *argv[])
 	exit(1);
 
     /* Set some pixels */
-    for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 10)
-    	for (uint16_t x = 0; x < bmp.row_px; x += 1)
-    	    if ( bitmap_modify_px(&bmp, x, y,
-    				  SET_PIXEL_BLACK, epd.black_colour) )
-    		exit(1);
+    /* for (uint16_t x = 0; x < bmp.row_px; x += 1) */
+    /* 	for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2) */
+    /* 	    if ( bitmap_modify_px(&bmp, x, y, */
+    /* 				  SET_PIXEL_BLACK, epd.black_colour) ) */
+    /* 		exit(1);2 */
     
     /* Apply a black rectangle */
-    uint8_t rect[] = { 0xFF, 0xFF, 0xFF, 0xFF,
-		       0xFF, 0xFF, 0xFF, 0xFF };
+    uint8_t rect[] = { 0xFF, 0x81, 0x81, 0xFF };
 
     BITMAP rectangle;
     rectangle.buffer = rect;
-    rectangle.length = 8;
-    rectangle.pitch  = 4;
+    rectangle.length = sizeof rect;
+    rectangle.pitch  = 2;
     rectangle.row_px = rectangle.pitch * 8;
 
-    bitmap_copy(&bmp, &rectangle, 2, 100);
+    bitmap_copy(&bmp, &rectangle, 1, 100);
 
     /* Display bitmap on device */
     if ( epd_display(&epd, bmp.buffer, bmp.length) )

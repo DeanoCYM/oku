@@ -225,6 +225,26 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 int
 bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 {
+    /* Check vaid bitmaps */
+    if ( check_bitmap(bmp) || check_bitmap(rectangle) ) {
+	log_err("Invalid bitmap.");
+	errno = ECANCELED;
+	return 1;
+    }
+
+    /* Pixel counts in rectangle */
+    uint16_t in_width   = rectangle->row_px;
+    uint16_t in_height  = rectangle->length / rectangle->pitch;
+    uint16_t out_width  = bmp->row_px;
+    uint16_t out_height = bmp->length / bmp->pitch;
+
+    if ( xmin + in_width  >= out_width  ||
+	 ymin + in_height >= out_height ) {
+	log_err("Cannot copy, input dimensions exceed bitmap limits.");
+	errno = EINVAL;
+	return 2;
+    }
+
     /* Start of input rectangle and its origin in output */
     uint8_t *in = rectangle->buffer;
     uint8_t *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
@@ -232,36 +252,51 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
     // check that the rectangle fits inside bmp.
 
     uint8_t bitnumber = xmin % 8; /* Position of misalignment */
+    uint8_t tmp_in = 0x00;	  /* Temporary data storage */
+    uint8_t mask = 0x00;	  /* Selects data to overwrite */
     size_t count = 0;		  /* Bytes to output */
-    uint8_t mask;		  /* Selects data to overwrite */
 
     while ( count < rectangle->length ) {
-	/* Copy as many leftmost bits in input to the rightmost in
-	   output as possible consdering misalignment. */
+
+	/* Correct misalignment in input byte. This will lose some
+	   data at the least significant bit. */
+	tmp_in = *in >> bitnumber;
+	    
+	/* Prepare output byte by unsetting bits to be overwritten
+	   using a mask.*/
 	mask = ~(0xFF >> bitnumber);
-	*out = *out & mask | *in >> bitnumber;
+	*out &= mask;
+
+	/* Combine shifted input byte with output byte. */
+	*out |= tmp_in;
+
+	/* Retreive bits from input byte previously ignored. */
+	tmp_in = *in << 8 - bitnumber;
+
+	/* Prepare next byte in output for data copy by unsetting bits
+	   to be overwritten.  */
 	++out;
+	mask = 0xFF >> bitnumber;
+	*out &= mask;
+	
+	/* Combine shifted input byte with output byte. */
+	*out |= tmp_in;
 
-	/* Copy remaining bits in input to leftmost bits in output */
-	mask = ~(0xFF << xmin % 8);
-	*out = *out & mask | *in << bitnumber;
+	/* one full byte of input copied */
 	++in;
-
-	++count;		/* one full byte of input copied */
+	++count;
 
 	/* To preserve horizontal alignment, when the end of one row
-	   reached in rectangle, also start new line in bitmap. */
+	   reached in rectangle, also move to new line in bitmap. */
 	if (count % rectangle->pitch == 0)
 	    out += bmp->pitch - rectangle->pitch;
     }
 
     log_info("Rectangle copy complete:\n\t"
-	     "Location in bitmap: (%u,%u) -- (%zu,%zu).\n\t"
-	     "Rectangle dimensions: %zuW x %zuH px, (%zuB).",
-	     xmin, ymin, rectangle->row_px + xmin,
-	     (rectangle->length / rectangle->pitch) + ymin,
-	     rectangle->row_px, rectangle->length / rectangle->pitch,
-	     rectangle->length);
+	     "Location in bitmap: (%u,%u) -- (%u,%u).\n\t"
+	     "Rectangle dimensions: %uW x %uH px, (%zuB).",
+	     xmin, ymin, xmin + in_width - 1, ymin + in_height - 1,
+	     in_width, in_height, rectangle->length);
 
     return 0;
 }
