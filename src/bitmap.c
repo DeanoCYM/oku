@@ -213,10 +213,7 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 
    The x and y coordinates are used to determine rectangle's target
    origin within bmp. The bits in input rectangle are then correctly
-   aligned and copied into the bitmap.
-
-   TODO: Check rectangle can fit into bmp.
-         Correctly handle unused bits at end of pitch.
+   aligned and copied into the bitmap in two operations.
 
    Returns:
    0 Success.
@@ -262,7 +259,7 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 	/* Retreive bits from input byte previously ignored. Wipe bits
 	   to be repaced in next output byte and combine with OR. */
 	++out;
-	*out = (*in << 8 - bitnumber) | (*out & 0xFF >> bitnumber);
+	*out = (*in << (8 - bitnumber)) | (*out & 0xFF >> bitnumber);
 
 	/* One full byte of input copied increment appropriately. */
 	++in;
