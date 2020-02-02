@@ -69,27 +69,51 @@ int main(int argc, char *argv[])
 	exit(1);
 
     /* Set some pixels */
-    /* for (uint16_t x = 0; x < bmp.row_px; x += 1) */
-    /* 	for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 2) */
-    /* 	    if ( bitmap_modify_px(&bmp, x, y, */
-    /* 				  SET_PIXEL_BLACK, epd.black_colour) ) */
-    /* 		exit(1);2 */
+    for (uint16_t x = 0; x < bmp.row_px; x += 5)
+    	for (uint16_t y = 0; y < bmp.length / bmp.pitch ; y += 5)
+    	    if ( bitmap_modify_px(&bmp, x, y,
+    				  SET_PIXEL_BLACK, epd.black_colour) )
+    		exit(1);
     
-    /* Apply a black rectangle */
-    uint8_t rect[] = { 0xFF, 0x81, 0x81, 0xFF };
-
+    /* Apply a rectangle showing binary pattern. */
     BITMAP rectangle;
+    bitmap_create(&rectangle, 2 * 8, 16);
+    uint8_t rect[] = { 0x00, 0x00,
+		       0x01, 0x01,
+		       0x02, 0x02,
+		       0x03, 0x03,
+		       0x04, 0x04,
+		       0x05, 0x05,
+		       0x06, 0x06,
+		       0x07, 0x07,
+		       0x08, 0x08,
+		       0x09, 0x09,
+		       0x0A, 0x0A,
+		       0x0B, 0x0B,
+		       0x0C, 0x0C,
+		       0x0D, 0x0D,
+		       0x0E, 0x0E,
+		       0x0F, 0x0F };
     rectangle.buffer = rect;
-    rectangle.length = sizeof rect;
-    rectangle.pitch  = 2;
-    rectangle.row_px = rectangle.pitch * 8;
+    bitmap_copy(&bmp, &rectangle, 2, 100);
 
-    bitmap_copy(&bmp, &rectangle, 1, 100);
+    /* Write some text. */
+    char font[] = "/usr/share/fonts/TTF/DejaVuSansCondensed.ttf";
+    struct TEXTBOX txt;
+    txt.font_file = font;
+    txt.font_size = 20;
+
+    if ( textbox_init(&txt) )
+	exit(1);
+    if ( textbox_write(&txt, &bmp) )
+	exit(1);
 
     /* Display bitmap on device */
     if ( epd_display(&epd, bmp.buffer, bmp.length) )
 	exit(1);
 
+    /* Clean up */
+    textbox_close(&txt);
     free(bmp.buffer);
     bmp.buffer = NULL;
 

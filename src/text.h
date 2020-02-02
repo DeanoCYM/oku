@@ -29,36 +29,18 @@
 
 /* Description:
 
-   Writes string to device.
-
 */
 
-#include <stdint.h>
-#include <sys/types.h>
+#include "bitmap.h"		/* remove after debugging */
 
-int text_add_string(void);
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
-/* Define the area to be used for writing text. Clears area setting
-   pixels to white. Text origin set to (xmin, ymin).
+struct TEXTBOX {
+    char *font_file;		/* Path to font file */
+    unsigned int font_size;	/* Font size in pixels */
+}; 
 
-   Returns:
-   0 Success
-   1 Error, coordinates out of bounds, errno set to EINVAL.
-   2 Error, communitication error, errno set to EIO  */
-//int text_set_area(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax);
-
-/* Sets the font (defaults to ...TBC).
-
-   Returns:
-   0 Success
-   1 Error, font size not avaliable, errno set to EINVAL */
-//int text_set_font(char *font);
-
-/* Writes string to device. Text starts at origin of text area and
-   proceeds until there is no remaining room.
-   
-   Returns:
-   Number of characters written.
-   -1 Communication error, errno set to EIO. */
-// int text_write(const char *str, size_t len);
-
+int textbox_init(struct TEXTBOX *txt);
+int textbox_close(struct TEXTBOX *txt);
+int textbox_write(struct TEXTBOX *txt, struct BITMAP *bmp);
