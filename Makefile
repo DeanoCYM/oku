@@ -1,4 +1,4 @@
-LOGLEVEL?=2 
+LOGLEVEL?=2
 REMOTE?=pi@pi:~/oku/
 
 # Define backends
@@ -31,19 +31,22 @@ $(TARGET): $(OBJ) $(TARGET).o
 clean:
 	rm -f $(TARGET)
 	rm -f *.o
-	rm -f display.pbm
+	rm -f display.pbm char.pbm
+	rm -f vgcore.*
 tags:
 	etags src/*.c src/*.h
-test: DEVICE=emulated
-test: LOGLEVEL=3
+
 test: clean all
 	-valgrind --leak-check=full --errors-for-leak-kinds=all \
 	--error-exitcode=33 --quiet ./$(TARGET)
-	-mupdf ./display.pbm &
+
 sync: clean
 	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)
+
+emulate: DEVICE=emulated
 emulate: test 
 	mupdf display.pbm
+
 remote: sync
 	ssh pi@pi "cd oku && sed -i 's/emulated/ws29bw/' Makefile && make test"
 
