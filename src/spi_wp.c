@@ -79,7 +79,7 @@ spi_init_gpio(void)
 void
 spi_gpio_pinmode(int pin, enum SPI_PINMODE mode)
 {
-    log_debug("%s setting pin %d to %d", BACKEND, pin, mode);
+    //log_debug("%s setting pin %d to %d", BACKEND, pin, mode);
     pinMode(pin, mode);
     return;
 }
