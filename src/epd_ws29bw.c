@@ -33,7 +33,7 @@
    electronic paper display module (EPDM).
 
    EPDM displays binary bitmap images. Bitmaps are provided as
-   uint8_t* arrays using bitmap.h.
+   pointers to the start of an array of bytes array using bitmap.h.
 
    One bit defines each pixel across the width of the EPD packed to 8
    a byte, don't care bits are at the end of the row if the device
@@ -52,10 +52,10 @@
 
 #include "epd.h"
 #include "spi.h"
+#include "oku_types.h"
 
 #include <ert_log.h>
 #include <errno.h>
-#include <stdint.h>
 
 /**********************/
 /* Device Information */
@@ -119,14 +119,14 @@ enum COMMAND
       TERMINATE_FRAME_READ_WRITE             = 0xFF };
 
 /* 30B Look up table (LUT) for full screen update */
-uint8_t lut_full_update[] =
+byte lut_full_update[] =
     { 0x02, 0x02, 0x01, 0x11, 0x12, 0x12, 0x22, 0x22,
       0x66, 0x69, 0x69, 0x59, 0x58, 0x99, 0x99, 0x88,
       0x00, 0x00, 0x00, 0x00, 0xF8, 0xB4, 0x13, 0x51,
       0x35, 0x51, 0x51, 0x19, 0x01, 0x00 };
 
 /* Partial updates not currently implemented */
-// const uint8_t lut_partial_update[] =
+// const byte lut_partial_update[] =
 //	{ 0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00,
 //	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 //	  0x00, 0x00, 0x00, 0x00, 0x13, 0x14, 0x44, 0x12,
@@ -138,14 +138,14 @@ uint8_t lut_full_update[] =
 static int init_gpio();
 static int init_spi(int spi_channel, int spi_clk_hz);
 static int write_command(enum COMMAND command);
-static int write_data(uint8_t *data, size_t len);
+static int write_data(byte *data, size_t len);
 static int push_shift_register(void) ;
-static int push_lut(uint8_t *lut);
+static int push_lut(byte *lut);
 static int wait_while_busy(unsigned int busy_delay);
-static int ram_set_window(uint16_t xmin, uint16_t xmax,
-			  uint16_t ymin, uint16_t ymax);
-static int  ram_set_cursor(uint16_t x, uint16_t y);
-static int ram_write(uint8_t *bitmap, uint16_t width, uint16_t height);
+static int ram_set_window(coordinate xmin, coordinate xmax,
+			  coordinate ymin, corrdinate ymax);
+static int  ram_set_cursor(coordinate x, coordinate y);
+static int ram_write(coordinate *bitmap, coordinate width, coordinate height);
 static int ram_load(unsigned int busy_delay);
 
 /***********************/
@@ -206,18 +206,18 @@ epd_on(EPD *epd)
    1 Fail, invalid bitmap length, errno set to EINVAL.
    2 Fail, SPI comms, errno set to ECOMM */
 int
-epd_display(EPD *epd, uint8_t *bitmap, size_t len)
+epd_display(EPD *epd, byte *bitmap, size_t len)
 {
     log_info("Updating device display with %zu bitmap.", len);
 
     /* 1 byte can represent 8px across the width. However, an extra
        byte is required on each row if the number of px across the
        width is not a factor of 8.  */
-    size_t width = (epd->width % 8 == 0)
-	? WIDTH / 8
-	: WIDTH / 8 + 1; 
+    size_t pitch = (epd->width % 8 == 0)
+	? epd->width / 8
+	: epd->width / 8 + 1; 
 
-    if (len != width * epd->height)  goto fail1;
+    if (len != pitch * epd->height)  goto fail1;
 
     if (ram_write(bitmap, epd->width, epd->height))
 	goto fail2;
@@ -264,7 +264,7 @@ epd_off(EPD *epd)
 {
     log_info("Device (%s) entering deep sleep mode", DEVICE);
 
-    uint8_t dsm[] = { 0x01 };
+    byte dsm[] = { 0x01 };
 
     if (wait_while_busy(epd->busy_delay)) {
 	log_err("Failed to sleep device");
@@ -341,7 +341,7 @@ write_command(enum COMMAND command)
     spi_gpio_write(PIN_CS, GPIO_LEVEL_LOW);
 
     /* Ensure that command is on 8-bit byte with bitmask */
-    uint8_t byte = command & 0xFF;
+    byte byte = command & 0xFF;
 
     if (spi_write(&byte, 1)) {
 	log_err("Failed to send command byte to device %s", DEVICE);
@@ -361,7 +361,7 @@ write_command(enum COMMAND command)
    Returns: 0  on success.
    1 on comms failure */
 static int
-write_data(uint8_t *data, size_t len)
+write_data(byte *data, size_t len)
 {
     /* DC pin high for data transfer */
     spi_gpio_write(PIN_DC, GPIO_LEVEL_HIGH);
@@ -389,13 +389,13 @@ push_shift_register(void)
 {
     /* Device specific data for commands in COMMAND enum, data
        variable name abbreviations correspond to COMMAND enum */
-    uint8_t doc[]  = { (HEIGHT-1) & 0xFF, ((HEIGHT-1) >> 8) & 0xFF, 0x00 };
-    uint8_t bssc[] = { 0xD7, 0xD6, 0x9D };
-    uint8_t wvr[]  = { 0xA8 };
-    uint8_t sdlp[] = { 0x1A };
-    uint8_t sgt[]  = { 0x08 };
-    uint8_t bwc[]  = { 0x03 };
-    uint8_t dems[] = { 0x03 };
+    byte doc[]  = { (HEIGHT-1) & 0xFF, ((HEIGHT-1) >> 8) & 0xFF, 0x00 };
+    byte bssc[] = { 0xD7, 0xD6, 0x9D };
+    byte wvr[]  = { 0xA8 };
+    byte sdlp[] = { 0x1A };
+    byte sgt[]  = { 0x08 };
+    byte bwc[]  = { 0x03 };
+    byte dems[] = { 0x03 };
 
     if (write_command(DRIVER_OUTPUT_CONTROL))      goto fail1;
     if (write_data(doc, ARRSIZE(doc)))             goto fail1;
@@ -426,7 +426,7 @@ push_shift_register(void)
    0 successful write.
    1 SPI write error. */
 static int
-push_lut(uint8_t *lut)
+push_lut(byte *lut)
 {
     if (write_command(WRITE_LUT_REGISTER)) goto fail1;
     if (write_data(lut, 30))               goto fail1;
@@ -481,19 +481,21 @@ wait_while_busy(unsigned int busy_delay)
    1 Fail, errno set to ECOMM
 */
 static int
-ram_set_window(uint16_t xmin, uint16_t xmax,
-	       uint16_t ymin, uint16_t ymax)
+ram_set_window(coordinate xmin, coordinate xmax,
+	       coordinate ymin, coordinate ymax)
 {
     /* One byte of data holds information for 8 pixels across the
        width. So 8px of data requires 1B of RAM, hence division by 8
        required (x >> 3) */
-    // Does not account for sizes that are not factor of eight
-    uint8_t x_start_end[] = { (xmin >> 3) & 0xFF, (xmax >> 3) & 0xFF };
+
+    // Does not account for sizes that are not factor of eight, but
+    // this is not an issue for this device
+    byte x_start_end[] = { (xmin >> 3) & 0xFF, (xmax >> 3) & 0xFF };
 
     /* Pixel height can be greater than 255 (more than 1B) on this
        device. Masking required to send as two bytes. */
-    uint8_t y_start_end[] = { ymin & 0xFF, (ymin >> 8) & 0xFF,
-			      ymax & 0xFF, (ymax >> 8) & 0xFF };
+    byte y_start_end[] = { ymin & 0xFF, (ymin >> 8) & 0xFF,
+			   ymax & 0xFF, (ymax >> 8) & 0xFF };
 
     if (write_command(SET_RAM_X_ADDRESS_START_END_POSITION)) goto fail1;
     if (write_data(x_start_end, ARRSIZE(x_start_end)))       goto fail1;
@@ -515,16 +517,16 @@ ram_set_window(uint16_t xmin, uint16_t xmax,
    Returns: 0  Success.
             1  Fail, errno set to ECOMM. */
 static int 
-ram_set_cursor(uint16_t x, uint16_t y)
+ram_set_cursor(coordinate x, coordinate y)
 {
     /* One byte of data holds information for 8 pixels across the
        width. So 8px of data requires 1B of RAM, hence division by 8
        required (x >> 3) */
-    uint8_t x_ram_start[] = { (x >> 3) & 0xFF };
+    byte x_ram_start[] = { (x >> 3) & 0xFF };
 
     /* Pixel height can be greater than 255 (more than 1B) on this
        device. Masking required to send as two bytes. */
-    uint8_t y_ram_start[] = { y & 0xFF, (y >> 8) & 0xFF };
+    byte y_ram_start[] = { y & 0xFF, (y >> 8) & 0xFF };
 
     if (write_command(SET_RAM_X_ADDRESS_COUNTER))      goto fail1;
     if (write_data(x_ram_start, ARRSIZE(x_ram_start))) goto fail1; 
@@ -549,24 +551,22 @@ ram_set_cursor(uint16_t x, uint16_t y)
    Returns 0  Success.
            1  Fail, SPI comms failure, errno set to ECOMM. */
 static int
-ram_write(uint8_t *bitmap, uint16_t width, uint16_t height)
+ram_write(byte *bitmap, coordinate width, coordinate height)
 {
     /* Bitmap data must be passed row by row for this device. The
        cursor must be set at the start of each new row. */
-    size_t row_bytes = (width % 8) ? 1 + (width / 8) : width / 8;
+    size_t pitch = (width % 8) ? 1 + (width / 8) : width / 8;
 
-    for (size_t y = 0; y < height; ++y) {
-	if (ram_set_cursor(0, y))
+    for (coordinate y = 0; y < height; ++y) {
+	if ( ram_set_cursor(0, y) )
 	    goto fail1;
-
-	if (write_command(WRITE_RAM))
+	if ( write_command(WRITE_RAM) )
 	    goto fail1;
-        
-	for (size_t x = 0; x < row_bytes; ++bitmap, ++x) {
-
-	    /* Logical representation of black and white pixels is
-	       the inverse of that provided by bitmap.h */
-	    uint8_t cur = ~(*bitmap);
+	for (coordinate x = 0; x < row_bytes; ++bitmap, ++x) {
+	    /* For this device, logical representation of black and
+	       white pixels is the inverse of that provided by
+	       bitmap.h. */
+	    byte cur = ~(*bitmap);
 	    if (write_data(&cur, 1))
 		goto fail1;
 	}
@@ -590,7 +590,7 @@ ram_write(uint8_t *bitmap, uint16_t width, uint16_t height)
 static int
 ram_load(unsigned int busy_delay)
 {
-    uint8_t duc2[] = { 0xC4 };
+    byte duc2[] = { 0xC4 };
 
     if (write_command(DISPLAY_UPDATE_CONTROL_2))   goto fail1;
     if (write_data(duc2, ARRSIZE(duc2)))           goto fail1;

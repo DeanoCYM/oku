@@ -25,14 +25,15 @@
  *
  */
 
-#include "spi.h"
-
 #include <unistd.h>
-#include <stdint.h>
+#include <stddef.h>
 #include <errno.h>
-#include <ert_log.h>
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
+#include <ert_log.h>
+
+#include "spi.h"
+#include "oku_types.h"
 
 #define BACKEND "WiringPi"
 
@@ -49,7 +50,6 @@ static int spi_fid = -1;
 int
 spi_init_gpio(void)
 {
-    log_info("Initialising GPIO interface with %s", BACKEND);
     wiringPiSetupGpio();	/* returns void but sets errno */
 
     /* Process errno */
@@ -132,7 +132,7 @@ spi_gpio_read(int pin)
    Returns: 0, on success.
             1 Error, sets ERRNO to EIO or EBADF*/
 int
-spi_write(uint8_t *data, size_t len)
+spi_write(byte *data, size_t len)
 {
     if (spi_fid < 0) {
 	log_err("Invalid file descriptor %d (%d)");

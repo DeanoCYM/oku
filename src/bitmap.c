@@ -48,25 +48,23 @@
 
 */
 
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <stddef.h>		/* size_t */
 #include <ert_log.h>
 
 #include "bitmap.h"
+#include "oku_types.h"
 
 /************************/
 /* Forward Declarations */
 /************************/
 
-static void px_toggle(uint8_t *byte, uint8_t bit_mask);
-static void px_unset(uint8_t *byte, uint8_t bit_mask);
-static void px_set(uint8_t *byte, uint8_t bit_mask);
-static size_t xy_to_index(size_t pitch, uint16_t x, uint16_t y);
-static uint8_t x_to_bitmask(uint16_t x);
-static int check_coordinates(size_t width, size_t height,
-			     uint16_t x, uint16_t y);
+static void px_toggle(byte *contains_px, byte bitmask);
+static void px_unset(byte *contains_px, byte bitmask);
+static void px_set(byte *contains_px, byte bitmask);
+static size_t xy_to_index(size_t pitch, coordinate x, coordinate y);
+static byte x_to_bitmask(coordinate x);
+static int check_coordinates(resolution width, resolution height,
+			     coordinate x, coordinate y);
 static int check_bitmap(BITMAP *bmp);
 
 /************************/
@@ -87,10 +85,10 @@ static int check_bitmap(BITMAP *bmp);
    1 Invalid width or height, errno set to EINVAL.
 */
 int
-bitmap_create(BITMAP *bmp, size_t width, size_t height)
+bitmap_create(BITMAP *bmp, resolution width, resolution height)
 {
     if (width == 0 || height == 0) {
-	log_err("Invalid bitmap dimensions %zuW%zuH px.",
+	log_err("Invalid bitmap dimensions %huW%huH px.",
 		width, height);
 	errno = EINVAL;
 	return 1;
@@ -100,15 +98,15 @@ bitmap_create(BITMAP *bmp, size_t width, size_t height)
        byte with 'don't care' bits is required. */
     bmp->pitch  = width % 8 ? (width / 8) + 1 : width / 8;
     bmp->length = bmp->pitch * height;
-    bmp->row_px = width;
+    bmp->width = width;
     bmp->buffer = NULL;		/* must be manually assigned */
 
-    log_info("%zuW x %zuH px device:\n\t"
-	     "New %zuW x %zuH px bitmap created (Total %zuB),\n\t"
+    log_info("%huW x %uH px device:\n\t"
+	     "New %huW x %huH px bitmap created (Total %zuB),\n\t"
 	     "%zuBit(s) unused in each %zuB row.",
 	     width, height,
-	     bmp->pitch * 8, bmp->length / bmp->pitch, bmp->length,
-	     bmp->row_px % 8, bmp->pitch);
+	     bmp->width, bmp->length / bmp->pitch, bmp->length,
+	     bmp->width % 8, bmp->pitch);
 
     return 0;
 }
@@ -129,8 +127,8 @@ bitmap_create(BITMAP *bmp, size_t width, size_t height)
    2 At least one coordinate out of range, errno set to EINVAL.
 */
 int
-bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
-		 enum SET_PIXEL_MODE mode, int pixel_colour)
+bitmap_modify_px(BITMAP *bmp, coordinate x, coordinate y,
+		 enum SET_PIXEL_MODE mode, int black_colour)
 {
     if ( check_bitmap(bmp) ) {
 	log_err("Invalid bitmap.");
@@ -140,30 +138,30 @@ bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
 
     /*  Length of the buffer divided by the pitch gives height of the
 	display in pixels */
-    if ( check_coordinates(bmp->row_px, bmp->length / bmp->pitch, x, y) ) {
-	log_err("Invalid coordinates");
+    if ( check_coordinates(bmp->width, bmp->length / bmp->pitch, x, y) ) {
+	log_err("Invalid coordinates.");
 	errno = EINVAL;
 	return 2;
     }
     
     /* Obtain the byte containing the bit and calculated the bit
        number */
-    uint8_t *byte = bmp->buffer + xy_to_index(bmp->pitch, x, y);
-    uint8_t bitmask = x_to_bitmask(x);
+    byte *contains_px = bmp->buffer + xy_to_index(bmp->pitch, x, y);
+    byte bitmask = x_to_bitmask(x);
 
     /* If the device does not conform to the convention of a black
        pixel being represented by a logical 1, then the operating
        modes must be reversed. This does not effect toggle mode which
        always inverts the bit.  */
-    if (pixel_colour == 0 || mode == SET_PIXEL_BLACK)
+    if (black_colour == 0 || mode == SET_PIXEL_BLACK)
 	mode = SET_PIXEL_WHITE;
-    else if (pixel_colour == 0 || mode == SET_PIXEL_WHITE)
+    else if (black_colour == 0 || mode == SET_PIXEL_WHITE)
 	mode = SET_PIXEL_BLACK;
     
     switch (mode) {
-    case SET_PIXEL_TOGGLE: px_toggle(byte, bitmask); break;
-    case SET_PIXEL_BLACK:  px_unset(byte, bitmask);  break;
-    case SET_PIXEL_WHITE:  px_set(byte, bitmask);    break;
+    case SET_PIXEL_TOGGLE: px_toggle(contains_px, bitmask); break;
+    case SET_PIXEL_BLACK:  px_unset(contains_px, bitmask);  break;
+    case SET_PIXEL_WHITE:  px_set(contains_px, bitmask);    break;
     }
 	
     return 0;
@@ -220,7 +218,7 @@ bitmap_clear(BITMAP *bmp, int black_colour)
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL. */
 int
-bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
+bitmap_copy(BITMAP *bmp, BITMAP *rectangle, coordinate xmin, coordinate ymin)
 {
     /* Ensure bitmaps are assigned and non 0. */
     if ( check_bitmap(bmp) || check_bitmap(rectangle) ) {
@@ -230,10 +228,10 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
     }
 
     /* Pixel counts in rectangle */
-    uint16_t in_width   = rectangle->row_px;
-    uint16_t in_height  = rectangle->length / rectangle->pitch;
-    uint16_t out_width  = bmp->row_px;
-    uint16_t out_height = bmp->length / bmp->pitch;
+    resolution in_width   = rectangle->width;
+    resolution in_height  = rectangle->length / rectangle->pitch;
+    resolution out_width  = bmp->width;
+    resolution out_height = bmp->length / bmp->pitch;
 
     /* Ensure rectangle fits inside bmp */
     if ( xmin + in_width  >= out_width  ||
@@ -245,11 +243,11 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 
     /* Determine the start of input rectangle and its origin in
        output. */
-    uint8_t *in = rectangle->buffer;
-    uint8_t *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
+    byte *in = rectangle->buffer;
+    byte *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
 
-    uint8_t bitnumber = xmin % 8; /* Bit position of misalignment */
-    size_t count = 0;		  /* Bytes from input written to output */
+    byte bitnumber = xmin % 8;	/* Bit position of misalignment */
+    size_t count = 0;	      /* Bytes from input written to output */
 
     while ( count < rectangle->length ) {
 	/* Correct misalignment in input byte. Wipe bits to be
@@ -279,6 +277,7 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
 
     return 0;
 }
+
 /********************/
 /* Static Functions */
 /********************/
@@ -291,9 +290,9 @@ bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin)
    bit_mask - Bits to be modified represented by logical 1.
 */
 static void
-px_toggle(uint8_t *byte, uint8_t bit_mask)
+px_toggle(byte *contains_px, byte bitmask)
 {
-    *byte ^= bit_mask;
+    *contains_px ^= bitmask;
     return;
 }
 
@@ -305,9 +304,9 @@ px_toggle(uint8_t *byte, uint8_t bit_mask)
    bit_mask - Bits to be modified represented by logical 1.
 */
 static void
-px_unset(uint8_t *byte, uint8_t bit_mask)
+px_unset(byte *contains_px, byte bitmask)
 {
-    *byte &= !bit_mask;
+    *contains_px &= !bitmask;
     return;
 }
 
@@ -319,9 +318,9 @@ px_unset(uint8_t *byte, uint8_t bit_mask)
    bit_mask - Bits to be modified represented by logical 1.
 */
 static void
-px_set(uint8_t *byte, uint8_t bit_mask)
+px_set(byte *contains_px, byte bitmask)
 {
-    *byte |= bit_mask;
+    *contains_px |= bitmask;
     return;
 }
 
@@ -339,7 +338,7 @@ px_set(uint8_t *byte, uint8_t bit_mask)
    Returns: Array index of byte containing pixel.
 */
 static size_t
-xy_to_index(size_t pitch, uint16_t x, uint16_t y)
+xy_to_index(size_t pitch, coordinate x, coordinate y)
 {
     return (y * pitch) + (x / 8);
 }
@@ -355,8 +354,8 @@ xy_to_index(size_t pitch, uint16_t x, uint16_t y)
 
    Returns: Bit mask for pixel at given x coordinate.
 */
-static uint8_t
-x_to_bitmask(uint16_t x)
+static byte
+x_to_bitmask(coordinate x)
 { 
     return 0x01 << ( 7 - (x % 8) ); 
 }
@@ -376,7 +375,8 @@ x_to_bitmask(uint16_t x)
    0 Coordinates within valid range.
    1 Invalid coordinates */
 static int
-check_coordinates(size_t width, size_t height, uint16_t x, uint16_t y)
+check_coordinates(resolution width, resolution height,
+		  coordinate x, coordinate y)
 {
     return (x >= width || y >= height) ? 1 : 0;
 }
@@ -394,6 +394,6 @@ check_coordinates(size_t width, size_t height, uint16_t x, uint16_t y)
 static int
 check_bitmap(BITMAP *bmp)
 {
-    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->row_px == 0 )
+    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->width == 0 )
 	? 1 : 0;
 }

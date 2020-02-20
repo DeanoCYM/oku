@@ -49,8 +49,9 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include <sys/types.h>
-#include "epd.h"
+#include <stddef.h>		/* size_t typdef */
+
+#include "oku_types.h"
 
 /***********/
 /* Objects */
@@ -62,10 +63,10 @@
    a buffer which must be assigned manually.
  */
 typedef struct BITMAP {
-    uint8_t *buffer;		/* Pointer to bitmap buffer */
-    size_t length;		/* Length of buffer (1D) in bytes */
+    byte *buffer;		/* Pointer to bitmap buffer */
+    resolution length;		/* Length of buffer (1D) in bytes */
+    resolution width;		/* Pixel count in one row */
     size_t pitch;		/* Number of bytes in the width */
-    size_t row_px;		/* Pixel count in one row */
 } BITMAP;
 
 enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
@@ -89,7 +90,7 @@ enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
    0 Success.
    1 Invalid width or height, errno set to EINVAL.
 */
-int bitmap_create(BITMAP *bmp, size_t width, size_t height);
+int bitmap_create(BITMAP *bmp, resolution width, resolution height);
 
 /* Function: bitmap_modify
 
@@ -106,8 +107,8 @@ int bitmap_create(BITMAP *bmp, size_t width, size_t height);
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL.
 */
-int bitmap_modify_px(BITMAP *bmp, uint16_t x, uint16_t y,
-		     enum SET_PIXEL_MODE mode, int pixel_colour);
+int bitmap_modify_px(BITMAP *bmp, coordinate x, coordinate y,
+		     enum SET_PIXEL_MODE mode, int black_colour);
 
 /* Function: bitmap_clear
 
@@ -130,6 +131,7 @@ int bitmap_clear(BITMAP *bmp, int black_colour);
    0 Success. 
    1 Critical bitmap buffer error, errno set to ECANCELED.
    2 At least one coordinate out of range, errno set to EINVAL. */
-int bitmap_copy(BITMAP *bmp, BITMAP *rectangle, uint16_t xmin, uint16_t ymin);
+int bitmap_copy(BITMAP *bmp, BITMAP *rectangle,
+		coordinate xmin, coordinate ymin);
 
 #endif	/* BITMAP_H */

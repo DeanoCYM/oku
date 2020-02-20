@@ -40,6 +40,7 @@
 #include <sys/types.h>
 
 #include "epd.h"
+#include "oku_types.h"
 
 /**********************/
 /* Device Information */
@@ -62,7 +63,7 @@ static int file_open(const char *filename);
 static int file_close(void);
 static int check_pbm(void);
 static int write_headers(void);
-static int write_bitmap(uint8_t *bitmap, size_t len);
+static int write_bitmap(byte *bitmap, size_t len);
 
 /*************/
 /* Interface */
@@ -133,7 +134,7 @@ epd_on(EPD *epd)
 */
 int
 epd_display(EPD *epd __attribute__((unused)),
-	    uint8_t *bitmap, size_t len)
+	    byte *bitmap, size_t len)
 {
     log_info("Displaying %luB bitmap.", len);
 
@@ -279,7 +280,7 @@ write_headers(void)
            1 Fail, SPI comms.
 */
 static int
-write_bitmap(uint8_t *bitmap, size_t len)
+write_bitmap(byte *bitmap, size_t len)
 {
     size_t res = 0;		/* bytes written */
     

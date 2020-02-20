@@ -31,16 +31,25 @@
 
 */
 
-#include "bitmap.h"		/* remove after debugging */
+#ifndef TEXT_H
+#define TEXT_H
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#include "bitmap.h"
+#include "utf8.h"
+#include "oku_types.h"
 
 struct TEXTBOX {
-    char *font_file;		/* Path to font file */
-    unsigned int font_size;	/* Font size in pixels */
+    char *fontfile;	      /* Path to font file */
+    char *textfile;	      /* Path to text file */
+    unsigned short fontsize; /* font size in pixels */
+    codepoint string[200];   /* UTF string */
+    struct BITMAP *bmp;	      /* Bitmap to contain string text */
+    coordinate x, y;	      /* Cursor used when writing text */
 }; 
 
 int textbox_init(struct TEXTBOX *txt);
 int textbox_close(struct TEXTBOX *txt);
-int textbox_write(struct TEXTBOX *txt, struct BITMAP *bmp);
+int textbox_write(struct TEXTBOX *txt);
+int textbox_set_cursor(struct TEXTBOX *txt, coordinate x, coordinate y);
+
+#endif	/* TEXT_H */

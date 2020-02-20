@@ -1,4 +1,4 @@
-/* spi.h
+/* oku_types.h
  * 
  * This file is part of oku.
  *
@@ -28,51 +28,33 @@
  */
 
 /* Description:
- *
- * Interface for SPI and GPIO communication between display device and
- * controller.
- * 
- */
 
-#ifndef SPI_H
-#define SPI_H
+   Defines aliases and describes oku data types.
+*/
 
-#include <stddef.h>
+#ifndef OKU_TYPES_H
+#define OKU__TYPES_H
 
-#include "oku_types.h"
+/* Local coordinate system to describle recangles, based on a positive
+   distance from an origin. The origin should be the upper left most
+   corner of the rectangle so by definition the coordinate can never
+   be negative.
 
-enum SPI_PINMODE
-    { SPI_PINMODE_INPUT, SPI_PINMODE_OUTPUT,
-      SPI_PINMODE_PWM, SPI_PINMODE_CLOCK };
+   The coordinate system is used it identify specific pixels in a
+   display device where (coordinate x == 0, coordinate y == 0)
+   corresponds to the origin.  */
+typedef unsigned short int coordinate;
 
-/* Initialises WiringPI SPI interface with Broadcom GPIO pin numbers.
-   Returns: 0 Success.
-            1 Error, sets errno to EIO. */
-int spi_init_gpio(void);
+/* A point count in one of the two planes of the coordinate
+   system. Typically used to count a number of pixels across one of
+   the axis. */
+typedef unsigned short int resolution;
 
-/* Sets GPIO pin to 'mode' */
-void spi_gpio_pinmode(int pin, enum SPI_PINMODE mode);
+/* A single octet of data. */
+typedef unsigned char byte;
 
-/* Write the logic level of a given GPIO pin to the provided value */
-void spi_gpio_write(int pin, int value);
+/* Unicode codepoint, a numerical value that describes a single
+   glyph. */
+typedef unsigned long int codepoint;
 
-/* Read the logic level of a given GPIO pin
-   Returns: 0  GPIO low voltage.
-            1  GPIO high voltage.
-	    -1 Error, errno set to EIO */
-int spi_gpio_read(int pin);
-
-/* Open spi interface.
-   Returns: 0  Success.
-            1  Error, sets errno to EIO. */
-int spi_open(int channel, int speed);
-
-/* Write n bytes to SPI interface.
-   Returns: 0  Success.
-            1  SPI Error, errno set to EIO */
-int spi_write(byte *data, size_t len);
-
-/* Generic delay (guaranteed minimum delay time) */
-void spi_delay(unsigned int time);
-
-#endif	/* SPI_H */
+#endif	/* OKU_TYPES_H */

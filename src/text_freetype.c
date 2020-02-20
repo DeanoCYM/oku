@@ -1,4 +1,4 @@
-/* text.c
+/* text_freetype.c
  * 
  * This file is part of oku.
  *
@@ -35,10 +35,13 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include "epd.h"
+#include <unistd.h>		/* access() */
+
+#include "oku_types.h"
 #include "text.h"
 #include "bitmap.h" 		/* remove after debugging */
 
+#define UNKNOWN_CHARACTER { 0x00, 0xEF, 0xBF, 0xBD };
 
 FT_Library library;
 FT_Face face;
@@ -46,6 +49,18 @@ FT_Face face;
 /************************/
 /* Forward Declarations */
 /************************/
+
+/* Static Functions */
+static int face_load_glyph(byte *character[4]);
+static resolution line_get_linespace(void);
+static int line_is_row_full(coordinate cur_x, coordinate x_max, long advance);
+static int line_is_height_full(coordinate cur_y, coordinate y_max,
+			       long linespace);
+static int line_write_char(struct BITMAP *bmp, coordinate x, coordinate y);
+static int load_character(codepoint utf);
+
+/* FreeType Wrappers */
+static int freetype_error(int res);
 static int freetype_library_init(void);
 static int freetype_set_fontface(char *path);
 static int freetype_set_fontsize(int fontsize);
@@ -55,114 +70,311 @@ static int freetype_load_glyph(int idx);
 static int freetype_render_glyph(void);
 static int freetype_free_face(void);
 static int freetype_free_library(void);
+
+/* Validation Functions */
+static int check_valid_fontfile(char *fontfile);
+static int check_valid_fontsize(char *fontsize);
+static int check_valid_string(codepoint *string);
+static int check_valid_bmp(struct BITMAP *bmp);
+static int check_valid_coordinates(coordinate x, coordinate y);
 static int check_glyph_rendered(unsigned char pixel_mode);
 static int check_down_flow(int pitch);
-static int check_valid_bitmap(FT_Bitmap *bitmap);
-static int freetype_error(int res);
+
+/* Debugging */
 static void debug_bitmap_to_stdout(void);
 static int debug_bitmap_to_file(void);
+
 
 /***********************/
 /* Interface Functions */
 /***********************/
 
+/* Function: textbox_init()
+
+   a textbox structure. The font file  */
 int
-textbox_init(struct TEXTBOX *txt)
+textbox_initialise(struct TEXTBOX *txt)
 {
-    if ( freetype_library_init() ) {
-	log_err("Failed to initialise FreeType");
-	goto out1;
-    }
+ /*    if ( check_valid_txtbox() || */
+ /* 	 freetype_library_init() ) */
+ /* 	goto out1; */
 
-    if ( freetype_set_fontface(txt->font_file) ) {
-	log_err("Failed to open font file:\n\t%s", txt->font_file);
-	goto out2;
-    }
+ /*    if ( check_valid_fontfile(txt->fontfile) || */
+ /* 	 freetype_set_fontface(txt->fontfile) ) */
+ /* 	goto out2; */
 
-    if ( freetype_set_fontsize(txt->font_size) ) {
-	log_err("Invalid font size %d", txt->font_size);
-	goto out3;
-    }
-
-    if ( freetype_set_charmap(FT_ENCODING_UNICODE) ) {
-	log_err("Invalid character map");
-	goto out3;
-    }
+ /*    if ( check_valid_fontsize(txt->fontsize) || */
+ /* 	 freetype_set_fontsize(txt->font_size) ) */
+ /* 	goto out2; */
+	 
+ /*    if ( freetype_set_charmap(FT_ENCODING_UNICODE) ) */
+ /* 	goto out3; */
     
-    log_info("FreeType Initialised with:\n\t Font: %s.\n\t Size: %d.",
-	     txt->font_file, txt->font_size);
+ /*    if ( check_valid_coordinates || */
+ /* 	 textbox_set_cursor(txt, 0, 0) ) */
+ /* 	goto out3; */
+
+    
+ /*    log_info("FreeType Initialised with:\n\t Font: %s.\n\t Size: %hu.\n\t", */
+ /* 	     txt->font_file, txt->font_size); */
 
     return 0;
- out3:
-    freetype_free_face();
- out2:
-    freetype_free_library();
- out1:
-    return 1;
+ /* out3: */
+ /*    freetype_free_face(); */
+ /* out2: */
+ /*    freetype_free_library(); */
+ /* out1: */
+ /*    log_err("Cannot create textbox, invalid fields."); */
+ /*    return 1; */
 	
 }
 
 int
 textbox_close(struct TEXTBOX *txt)
 {
-    if ( freetype_free_face() ) {
-	log_err("Failed to free FreeType font face memory.");
-	return 1;
-    }
+    /* if ( freetype_free_face() ) { */
+    /* 	log_err("Failed to free FreeType font face memory."); */
+    /* 	return 1; */
+    /* } */
 
-    if ( freetype_free_library() ) {
-	log_err("Failed to free FreeType library memory.");
-	return 1;
-    }
+    /* if ( freetype_free_library() ) { */
+    /* 	log_err("Failed to free FreeType library memory."); */
+    /* 	return 1; */
+    /* } */
     
-    txt->font_file = NULL;
-    txt->font_size = 0;
+    /*  txt->fontfile = NULL; */
+    /*  txt->fontsize = 0; */
+    /*  txt->string = NULL; */
+    /*  txt->bmp = NULL; */
+    /*  txt->x = 0; */
+    /*  txt->y = 0; */
 
-    log_info("Textbox closed.");
+    /* log_info("Textbox closed."); */
 
     return 0;
 }
 
 int
-textbox_write(struct TEXTBOX *txt, struct BITMAP *bmp)
+textbox_write(struct TEXTBOX *txt)
 {
-    unsigned long ch = 'g';
-    int idx = 0;
+    /* /\* Pixel counts *\/ */
+    /* resolution dev_width  = txt->bmp->row_px; */
+    /* resolution dev_height = txt->bmp->length / txt->bmp->pitch; */
 
-    if ( freetype_get_char_index(ch, &idx) ) {
-	log_err("Invalid character '%c'.", 0xFF & ch);
+    /* /\* Cursors *\/ */
+    /* coordinate x = 0; */
+    /* coordinate y = 0; */
+
+    /* /\* Buffers for one utf character *\/ */
+    /* byte character[4]      = { 0x00, 0x00, 0x00, 0x00 }; */
+    /* byte character_prev[4] = { 0x00, 0x00, 0x00, 0x00 }; */
+    
+    /* while ( utf8_nextchar(txt->string, &character) == 0 ) { */
+
+    /* 	// load character bitmap to face (global scope) */
+    /* 	if ( char_load(&character) ) */
+    /* 	    char_load_replacement(); */
+
+    /* 	// determine character position */
+    /* 	char_position(dev_width, dev_height, &x, &y); */
+
+    /* 	// copy character */
+    /* 	char_write(txt->bmp, &x, &y); */
+
+    /* } */
+
+    return 0;
+}
+ 
+int
+textbox_set_cursor(struct TEXTBOX *txt, uint16_t x, uint16_t y)
+{
+    /* if (txt->bmp == NULL) { */
+    /* 	log_err("Cannot set cursor, invalid bitmap."); */
+    /* 	return 1; */
+    /* } */
+
+    /* size_t x_count = txt->bmp->row_px; */
+    /* size_t y_count = txt->bmp->length / txt->bmp->pitch; */
+
+    /* if ( x >= x_count || y >= y_count ) { */
+    /* 	log_err("Cannot set cursor, invalid coordinates:\n\t" */
+    /* 		"Given: (%lu, %lu) Max: (%zu, %zu).", */
+    /* 		x, y, x_count - 1, y_count - 1); */
+    /* 	return 2; */
+    /* } */
+	    
+    /* txt->x = x; */
+    /* txt->y = y; */
+
+    return 0;
+}
+/********************/
+/* Static Functions */
+/********************/
+
+/* Static function: face_load()
+
+   Loads unicode 'character' into FreeType face (global scope).
+
+   Returns:
+   0 Success, character loaded to face.
+   1 Failed to load character.
+*/
+static int
+face_load_glyph(byte *character[4])
+{
+    return 0;
+}
+
+static resolution
+line_get_linespace(void)
+{
+    return face->size->metrics.height / 64;
+}
+
+static int
+line_is_row_full(coordinate cur_x, coordinate x_max, long advance)
+{
+    return x_max >= (cur_x + advance) ? 0 : 1;
+}
+
+static int
+line_is_height_full(coordinate cur_y, coordinate y_max, long linespace)
+{
+    return y_max >= (cur_y + linespace) ? 0 : 1;
+}
+
+static int
+line_write_char(struct BITMAP *bmp, coordinate x, coordinate y)
+{
+    struct BITMAP character;
+    if ( bitmap_create(&character, face->glyph->bitmap.pitch * 8,
+		       face->glyph->bitmap.rows) )
+	return 1;
+
+    character.buffer = face->glyph->bitmap.buffer;
+
+    if ( bitmap_copy(bmp, &character, x, y) )
+	return 2;
+
+    return 0;
+}
+
+static int
+load_character(codepoint utf)
+{
+    int ft_idx = 0;
+
+    // get character string.
+
+    if ( freetype_get_char_index(utf, &ft_idx) ) {
+	log_err("Invalid character U+'%zx'.", utf);
 	return 1;
     }
 
-    if ( freetype_load_glyph(idx) ) {
-	log_err("Failed to load glyph:\n\tCharacter: '%c', Index %d.",
-		0xFF & ch, idx);
+    if ( freetype_load_glyph(ft_idx) ) {
+	log_err("Failed to load glyph:\n\t"
+		"Character: '%zx', Index %d.", utf, ft_idx);
 	return 1;
     }
 
     if ( freetype_render_glyph() ) {
-	log_err("Failed to render glyph:\n\tCharacter: '%c', Index %d.",
-		0xFF & ch, idx);
+	log_err("Failed to render glyph:\n\t"
+		"Character: '%zx', Index %d.", utf, ft_idx);
 	return 1;
     }
-	 
-    debug_bitmap_to_stdout();
-    debug_bitmap_to_file();
 
-    struct BITMAP res;
-    if ( bitmap_create(&res, face->glyph->bitmap.pitch * 8,
-		       face->glyph->bitmap.rows) )
+    if ( check_glyph_rendered(face->glyph->bitmap.pixel_mode) ||
+	 check_down_flow(face->glyph->bitmap.pitch) ) {
+
+	log_err("Glyph rendered incorrectly\n\t"
+		"Character: '%zx', Index %d.", utf, ft_idx);
 	return 1;
-    res.buffer = face->glyph->bitmap.buffer;
-    if ( bitmap_copy(bmp, &res, 0, 0))
-	return 1;
+    }
     
     return 0;
 }
 
-/********************/
-/* Static Functions */
-/********************/
+/************************/
+/* Validation Functions */
+/************************/
+
+/* Each function checks that the provided value is valid, returns 0 if
+   valid and 1 if invalid. */
+
+static int
+check_valid_fontfile(char *fontfile)
+{
+    return 0;
+}
+
+static int
+check_valid_fontsize(char *fontsize)
+{
+    return 0;
+}
+
+static int
+check_valid_string(struct UTF *string)
+{
+    return 0;
+}
+
+static int
+check_valid_bmp(struct BITMAP *bmp)
+{
+    return 0;
+}
+
+static int
+check_valid_coordinates(coordinate x, coordinate y)
+{
+    return 0;
+}
+
+static int
+check_glyph_rendered(unsigned char pixel_mode)
+{
+    return pixel_mode == FT_PIXEL_MODE_MONO ? 0 : 1;
+}
+
+static int
+check_down_flow(int pitch)
+{
+    return pitch < 0 ? 1 : 0;
+}
+
+/******************************/
+/* FreeType Wrapper Functions */
+/******************************/
+
+/* Static Function: freetype_error().
+
+   Tests the FreeType return value. All freetype library functions
+   that return error codes should be wrapped around this function.
+
+   If FreeType library functions returns an error code, this function
+   returns 1. Otherwise, 0 is returned.  */
+static int
+freetype_error(int res)
+{
+    switch ( res ) {
+
+    case FT_Err_Ok:
+	break;
+
+    default:
+	log_err("FreeType error %d.", res);
+	return 1;
+    }
+    
+    return 0;
+}
+
+/* Wrappers around FreeType functions that test the FreeType return
+   value using Freetype_error(). Each function returns 0 on success or
+   1 on failure. */
 
 static int
 freetype_library_init(void)
@@ -204,7 +416,8 @@ freetype_load_glyph(int idx)
 static int
 freetype_render_glyph(void)
 {
-    return freetype_error( FT_Render_Glyph(face->glyph, FT_RENDER_MODE_MONO) );
+    int flags = FT_RENDER_MODE_MONO;
+    return freetype_error( FT_Render_Glyph(face->glyph, flags) );
 }
 
 static int
@@ -219,39 +432,9 @@ freetype_free_library(void)
     return freetype_error( FT_Done_FreeType(library) );
 }
 
-static int
-check_glyph_rendered(unsigned char pixel_mode)
-{
-    return pixel_mode == FT_PIXEL_MODE_MONO ? 0 : 1;
-}
-
-static int
-check_down_flow(int pitch)
-{
-    return pitch < 0 ? 1 : 0;
-}
-
-static int
-check_valid_bitmap(FT_Bitmap *bitmap)
-{
-    return bitmap == NULL ? 1 : 0;
-}
-
-static int
-freetype_error(int res)
-{
-    switch ( res ) {
-
-    case FT_Err_Ok:
-	break;
-
-    default:
-	log_err("FreeType error %d.", res);
-	return 1;
-    }
-    
-    return 0;
-}
+/***********************/
+/* Debugging Functions */
+/***********************/
 
 static void
 debug_bitmap_to_stdout(void)
@@ -308,3 +491,4 @@ debug_bitmap_to_file(void)
 
     return 0;
 }
+

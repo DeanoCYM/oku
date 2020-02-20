@@ -1,4 +1,4 @@
-/* spi.h
+/* oku_err.h
  * 
  * This file is part of oku.
  *
@@ -28,51 +28,21 @@
  */
 
 /* Description:
- *
- * Interface for SPI and GPIO communication between display device and
- * controller.
- * 
- */
 
-#ifndef SPI_H
-#define SPI_H
+   Defines error number enumeration and descriptive strings.
+*/
 
-#include <stddef.h>
+#ifndef OKU_ERR_H
+#define OKU_ERR_H
 
-#include "oku_types.h"
+enum OKU_ERRNO
+    {
+     OKU_OK                            = 0x00, /* No error */
+     OKU_INVALID_ARGS                  = 0x01,
+     
+     
+     
 
-enum SPI_PINMODE
-    { SPI_PINMODE_INPUT, SPI_PINMODE_OUTPUT,
-      SPI_PINMODE_PWM, SPI_PINMODE_CLOCK };
+    };
 
-/* Initialises WiringPI SPI interface with Broadcom GPIO pin numbers.
-   Returns: 0 Success.
-            1 Error, sets errno to EIO. */
-int spi_init_gpio(void);
-
-/* Sets GPIO pin to 'mode' */
-void spi_gpio_pinmode(int pin, enum SPI_PINMODE mode);
-
-/* Write the logic level of a given GPIO pin to the provided value */
-void spi_gpio_write(int pin, int value);
-
-/* Read the logic level of a given GPIO pin
-   Returns: 0  GPIO low voltage.
-            1  GPIO high voltage.
-	    -1 Error, errno set to EIO */
-int spi_gpio_read(int pin);
-
-/* Open spi interface.
-   Returns: 0  Success.
-            1  Error, sets errno to EIO. */
-int spi_open(int channel, int speed);
-
-/* Write n bytes to SPI interface.
-   Returns: 0  Success.
-            1  SPI Error, errno set to EIO */
-int spi_write(byte *data, size_t len);
-
-/* Generic delay (guaranteed minimum delay time) */
-void spi_delay(unsigned int time);
-
-#endif	/* SPI_H */
+#endif	/* OKU_ERR_H */

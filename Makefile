@@ -14,7 +14,7 @@ CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) $(INCLUDE)
 
 # Definition of target executable and libraries
 TARGET=oku_test
-OBJ=spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o text_${RENDER}.o
+OBJ=spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o #text_${RENDER}.o
 
 .PHONY: all clean tags test sync emulate
 

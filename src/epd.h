@@ -39,7 +39,8 @@
 #define EPD_H
 
 #include <sys/types.h>
-#include <stdint.h>
+
+#include "oku_types.h"
 
 /***********/
 /* Objects */
@@ -50,9 +51,9 @@
    Electronic paper device (EPD) structure.
 */
 typedef struct EPD {
-    int black_colour;		/* logical representation of black pixel */
-    uint16_t width;		/* Device pixel count in width */
-    uint16_t height;		/* Device pixel count  */
+    int black_colour;		/* logical representation of a black pixel */
+    resolution width;		/* Device pixel count in width */
+    resolution height;		/* Device pixel count  */
     int spi_channel;		/* SPI Channel (0 or 1) */
     int spi_clk_hz;		/* SPI clock speed */
     unsigned int reset_delay;	/* GPIO reset pin hold time (ms) */
@@ -102,7 +103,7 @@ int epd_on(EPD *epd);
    1 Fail, invalid bitmap length, errno set to EINVAL.
    2 Fail, communication error, errno set to ECOMM.
 */
-int epd_display(EPD *epd, uint8_t *bitmap, size_t len);
+int epd_display(EPD *epd, byte *bitmap, size_t len);
 
 /* Function: epd_reset
 
