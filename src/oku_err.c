@@ -1,4 +1,4 @@
-/* oku_types.h
+/* oku_err.h
  * 
  * This file is part of oku.
  *
@@ -29,37 +29,22 @@
 
 /* Description:
 
-   Defines aliases and describes oku data types.
+   Error handling.
 */
 
-#ifndef OKU_TYPES_H
-#define OKU__TYPES_H
+#include
 
-#include <stddef.h>		/* size_t */
+#define STR_MAX 64
 
-/* Local coordinate system to describle recangles, based on a positive
-   distance from an origin. The origin should be the upper left most
-   corner of the rectangle so by definition the coordinate can never
-   be negative.
-
-   The coordinate system is used it identify specific pixels in a
-   display device where (coordinate x == 0, coordinate y == 0)
-   corresponds to the origin.  */
-typedef unsigned short int coordinate;
-
-/* A point count in one of the two planes of the coordinate
-   system. Typically used to count a number of pixels across one of
-   the axis. */
-typedef unsigned short int resolution;
-
-/* A single octet of data. */
-typedef unsigned char byte;
-
-/* Number of elements in an array */
-typedef size_t members;
-
-/* Unicode codepoint, a numerical value that describes a single
-   glyph. */
-typedef unsigned long int codepoint;
-
-#endif	/* OKU_TYPES_H */
+/* Error messages are associated with  */
+const char * const errstr[STR_MAX] =
+    {
+     "Invalid argument(s).",				  /* 0x01 */
+     "Problem communicating with EPD.",			  /* 0x02 */
+     "Memory error."					  /* 0x03 */
+     "Input output error."				  /* 0x04 */
+     "Uninitialised or unallocated variable."		  /* 0x05 */
+     "Incomplete write."				  /* 0x06 */
+    };
+    
+const char * const errstr[STR_MAX] =

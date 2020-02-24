@@ -1,4 +1,4 @@
-/* oku_types.h
+/* oku_mem.h
  * 
  * This file is part of oku.
  *
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with oku.  If not, see <https://www.gnu.org/licenses/>.
  * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS OR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
@@ -27,39 +27,13 @@
  * SOFTWARE.
  */
 
-/* Description:
+#ifndef OKU_MEM_H
+#define OKU_MEM_H
 
-   Defines aliases and describes oku data types.
-*/
+#include "oku_types.h"
 
-#ifndef OKU_TYPES_H
-#define OKU__TYPES_H
+void *oku_arrayalloc(members n, size_t bytes_per_member);
+void *oku_alloc(members n);
+void oku_free(void *mem);
 
-#include <stddef.h>		/* size_t */
-
-/* Local coordinate system to describle recangles, based on a positive
-   distance from an origin. The origin should be the upper left most
-   corner of the rectangle so by definition the coordinate can never
-   be negative.
-
-   The coordinate system is used it identify specific pixels in a
-   display device where (coordinate x == 0, coordinate y == 0)
-   corresponds to the origin.  */
-typedef unsigned short int coordinate;
-
-/* A point count in one of the two planes of the coordinate
-   system. Typically used to count a number of pixels across one of
-   the axis. */
-typedef unsigned short int resolution;
-
-/* A single octet of data. */
-typedef unsigned char byte;
-
-/* Number of elements in an array */
-typedef size_t members;
-
-/* Unicode codepoint, a numerical value that describes a single
-   glyph. */
-typedef unsigned long int codepoint;
-
-#endif	/* OKU_TYPES_H */
+#endif	/* OKU_MEM_H */

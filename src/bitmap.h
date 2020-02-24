@@ -64,9 +64,9 @@
  */
 typedef struct BITMAP {
     byte *buffer;		/* Pointer to bitmap buffer */
-    resolution length;		/* Length of buffer (1D) in bytes */
+    members length;		/* Length of buffer (1D) in bytes */
+    members pitch;		/* Number of bytes in the width */
     resolution width;		/* Pixel count in one row */
-    size_t pitch;		/* Number of bytes in the width */
 } BITMAP;
 
 enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
@@ -75,63 +75,35 @@ enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
 /* Interface Deceleration */
 /**************************/
 
-/* Function: bitmap_create
+/* Function: bitmap_create()
 
    Initialise bitmap object using electronic paper device
    dimensions. This does function does not allocate memory for the
    bitmap buffer in bmp->buffer. This must be done manually by
-   allocating bmp->length bytes.
+   allocating bmp->length bytes. */
+BITMAP *bitmap_create(resolution width, resolution height);
 
-   bmp - Bitmap object.
-   width - Pixel count in width.
-   height - Pixel count in height.
-
-   Returns:
-   0 Success.
-   1 Invalid width or height, errno set to EINVAL.
-*/
-int bitmap_create(BITMAP *bmp, resolution width, resolution height);
-
-/* Function: bitmap_modify
+/* Function: bitmap_modify()
 
    Sets, unsets or toggles the colour of the pixels at the given
-   coordinates according to the given mode.
-
-   bmp - Bitmap object (bmp->buffer must be allocated).
-   x,y - Cartesian coordinates of pixel.
-   mode - Set to black, white or toggle pixel colour.
-   pixel_colour - device logical representation of a black pixel
-
-   Returns:
-   0 Success.
-   1 Critical bitmap buffer error, errno set to ECANCELED.
-   2 At least one coordinate out of range, errno set to EINVAL.
-*/
+   coordinates according to the given mode. */
 int bitmap_modify_px(BITMAP *bmp, coordinate x, coordinate y,
-		     enum SET_PIXEL_MODE mode, int black_colour);
+		     enum SET_PIXEL_MODE mode);
 
-/* Function: bitmap_clear
+/* Function: bitmap_clear()
 
-   Clear the bitmap by setting each pixel to white.
+   Clear the bitmap by setting each pixel to white. */
+int bitmap_clear(BITMAP *bmp);
 
-   bmp - Bitmap object (bmp->buffer must be allocated)
-   black_colour - logical representation of a black pixel
+/* Function: bitmap_copy()
 
-   Returns:
-   0 Success.
-   1 Invalid black_colour, errno set to EINVAL.
-   2 Invalid bitmap, errno set the ECANCELED.
- */
-int bitmap_clear(BITMAP *bmp, int black_colour);
-/* Function: bitmap_copy
-
-   Copy rectangle into bitmap buffer.
-
-   Returns:
-   0 Success. 
-   1 Critical bitmap buffer error, errno set to ECANCELED.
-   2 At least one coordinate out of range, errno set to EINVAL. */
+   Copy rectangle into bitmap buffer. */
 int bitmap_copy(BITMAP *bmp, BITMAP *rectangle,
 		coordinate xmin, coordinate ymin);
+
+/* Function: bitmap_destroy()
+
+   Free all memory allocated for bitmap_destroy. */
+int bitmap_destroy(BITMAP *bmp);
 
 #endif	/* BITMAP_H */

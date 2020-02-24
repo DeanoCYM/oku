@@ -36,11 +36,10 @@
 
 #include <ert_log.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <sys/types.h>
 
 #include "epd.h"
 #include "oku_types.h"
+#include "oku_mem.h"
 
 /**********************/
 /* Device Information */
@@ -51,139 +50,99 @@
 #define HEIGHT 296		 /* Display height (px) */
 #define STR_LEN 6		 /* Number of characters in width+height */
 
-/********************/
-/* Global Variables */
-/********************/
-FILE *pbm = NULL;		/* PMB file handle */
-
 /************************/
 /* Forward Declarations */
 /************************/
-static int file_open(const char *filename);
-static int file_close(void);
-static int check_pbm(void);
-static int write_headers(void);
-static int write_bitmap(byte *bitmap, size_t len);
+static int file_open(const char *filename, EPD *epd);
+static int file_close(EPD *epd);
+static int file_check(FILE *pbm);
+static int file_write_headers(FILE *pbm);
+static int file_write_bitmap(byte *bitmap, members len, FILE *pbm);
 
 /*************/
 /* Interface */
 /*************/
 
-/* Function: epd_on
+/* Function: epd_create()
+
+   Allocate memory for and initialise an EPD structure. Returns a
+   handle to the structure.
+
+   For this software only implementation, SPI communication fields are
+   not required. */
+EPD *
+epd_create(void)
+{
+    EPD *epd = oku_alloc(sizeof *epd);
+
+    /* Record device dimensions */
+    epd->width  = WIDTH;
+    epd->height = HEIGHT;
+
+    return epd;
+}
+
+/* Function: epd_on()
 
    Opens new PBM file and writes headers in anticipation of later
-   binary buffer write.
-
-   epd - Electronic paper display object.
-
-   Returns:
-   0  Success, device initialised.
-   1  Fail, file I/O error (errno ECOMM).
-*/
+   binary buffer write. */
 int
 epd_on(EPD *epd)
 {
-    log_info("Starting %s.", DEVICE);
-    
-    /* In a pbm file, a black pixel is represented by logical 1. */
-    epd->black_colour = 1;
-    epd->width = WIDTH;
-    epd->height = HEIGHT;
-    epd->spi_channel = 0;
-    epd->spi_clk_hz = 0;
-    epd->reset_delay = 0;
-    epd->busy_delay = 0;
+    int err = file_open(FILENAME, epd);
+    if (err > 0)
+	return err;
 
-    if (pbm) {			/* file already open */
-	log_err("File %s already open", FILENAME);
-	goto fail1;
-    }
-    
-    if ( file_open(FILENAME) ) {
-	log_err("Cannot open file %s.", FILENAME);
-	goto fail1;
+    err = file_write_headers(epd->stream);
+    if (err > 0) {
+	file_close(epd);
+	return err;
     }
 
-    if ( write_headers() ) {
-	log_err("Cannot write headers to file %s.", FILENAME);
-	goto fail2;
-    }
-
-    return 0;
- fail2:
-    file_close();	    /* File closed and handle reset to NULL */
- fail1:
-    errno = ECOMM;
-    return 1;
+    return OK;
 }
-
-/* Function: epd_display
+ 
+/* Function: epd_display()
 
    Writes binary image data to file.
 
-   epd - Electronic paper display object.
-
    bitmap - Pointer to bitmap buffer.
-
-   len - Length of bitmap in buffer in bytes.
-
-   Returns:
-   0 Success.
-   1 Fail, invalid bitmap length, (errno EINVAL).
-   2 Fail, communication error, (errno ECOMM).
-*/
+   len - Length of bitmap in buffer in bytes. */
 int
-epd_display(EPD *epd __attribute__((unused)),
-	    byte *bitmap, size_t len)
+epd_display(EPD *epd __attribute__((unused)), byte *bitmap, members len)
 {
-    log_info("Displaying %luB bitmap.", len);
+    if (len == 0 || bitmap == NULL)
+	return ERR_INPUT;
 
-    if (len == 0 || bitmap == NULL ) {
-	log_err("Invalid bitmap.");
-	errno = EINVAL;
-	return 1;
-    }
-
-    if ( write_bitmap(bitmap, len) ) {
-	log_err("Failed to write to %s.", FILENAME);
-	errno = ECOMM;
-	return 2;
-    }
-       
-    return 0;
+    return file_write_bitmap(bitmap, len, epd->stream);
 }
 
+/* Function: epd_reset()
 
-/* Function epd_reset.
-
-   Opens and closes file (overwriting contents).
-
-   Returns:
-   0 Success.
-   1 Failed to reset (errno set to EBUSY or ECOMM).
-
-*/
+   Opens and closes file, deletes all contents and rewrites
+   headers. */
 int
 epd_reset(EPD *epd)
 {
-    log_info("Resetting %s.", DEVICE);
-
     return epd_on(epd) || epd_off(epd);
 }
 
 /* Closes PBM file */
 int
-epd_off(EPD *epd __attribute__((unused)))
+epd_off(EPD *epd)
 {
-    log_info("Device %s entering sleep mode.", DEVICE);
+    return file_close(epd);
+}
 
-    if (file_close()) {
-	log_err("Failed to close file %s", FILENAME);
-	errno = EBUSY;
-	return 1;
-    }
+int
+epd_destroy(EPD *epd)
+{
+    if (epd == NULL)
+	return ERR_UNINITIALISED;
 
-    return 0;
+    oku_free(epd);
+
+    return OK;
 }
 
 /********************/
@@ -199,38 +158,27 @@ epd_off(EPD *epd __attribute__((unused)))
    Returns: 0 Success.
             1 Failed to open file. */
 static int
-file_open(const char *filename)
+file_open(const char *filename, struct EPD *epd)
 {
-    pbm = fopen(filename, "w");
-    if (check_pbm())
-	return 1;
+    epd->stream = fopen(filename, "w");
 
-    return 0;
+    return file_check(epd->stream) ? ERR_IO : OK;
 }
 
 /* Static function: file_close
 
-   Closes PBM image file.
-
-   Returns: 0 Success.
-            1 Invalid file pointer.
-            2 Failed to close file. */
+   Closes PBM image file. */
 static int
-file_close(void)
+file_close(struct EPD *epd)
 {
-    log_info("Closing file %s for device %s.", FILENAME, DEVICE);
+    int err = OK;
+    err = file_check(epd->stream);
+    if (err > 0) return err;
 
-    if (check_pbm())
-	return 1;
+    err = fclose(epd->stream);
+    epd->stream = NULL;
 
-    if (fclose(pbm)) {
-	log_warn("Failed to close file %s.", FILENAME);
-	return 2;
-    }
-
-    pbm = NULL;
-
-    return 0;
+    return err;
 }
 
 /* Static function: write_headers
@@ -244,20 +192,16 @@ file_close(void)
    in decimal, followed by whitespace.
       
    The height in pixels of the image, again in ASCII decimal, followed
-   by whitespace character (usually a newline).
-
-   Returns:
-   0 Success, (at least some characters written).
-   1 Fail, no characters written.
-*/
+   by whitespace character (usually a newline). */
 static int
-write_headers(void)
+file_write_headers(FILE *pbm)
 {
     /* Length of the string written is checked against return value of
        fprintf(). 5 characters, plus the device dimensions are used
        including the newline. */
     int len = 5 + STR_LEN;
-    return fprintf(pbm, "P4 %d %d\n", WIDTH, HEIGHT) != len ? 1 : 0;
+    return fprintf(pbm, "P4 %d %d\n", WIDTH, HEIGHT) != len
+	? ERR_PARTIAL_WRITE : OK;
 }
 
 /* Static function: write bitmap
@@ -274,40 +218,19 @@ write_headers(void)
    The order of the pixels is left to right. The order of their
    storage within each file byte is most significant bit to least
    significant bit. The order of the file bytes is from the beginning
-   of the file toward the end of the file.
-
-   Returns 0 Success.
-           1 Fail, SPI comms.
-*/
+   of the file toward the end of the file. */
 static int
-write_bitmap(byte *bitmap, size_t len)
+file_write_bitmap(byte *bitmap, members len, FILE *pbm)
 {
-    size_t res = 0;		/* bytes written */
-    
-    res = fwrite(bitmap, sizeof bitmap[0], len, pbm);
-    if (res < len) {
-	log_err("Incomplete write to %s", FILENAME);
-	return 1;
-    }
-
-    return 0;
+    return fwrite(bitmap, sizeof *bitmap, len, pbm) < len
+	? ERR_PARTIAL_WRITE : OK;
 }
 
-/* Static function: check_pbm
+/* Static function: file_check()
 
-   Check file pointer is not NULL.
-
-   Returns:
-   0 not NULL.
-   1 NULL.
-   */
+   Check file pointer is not NULL. */
 static int
-check_pbm(void)
+file_check(FILE *pbm)
 {
-    if (!pbm) {
-	log_warn("Invalid file pointer.");
-	return 1;
-    }
-
-    return 0;
+    return pbm == NULL ? ERR_UNINITIALISED : OK;
 }

@@ -48,75 +48,69 @@
 
 */
 
-#include <stddef.h>		/* size_t */
-#include <ert_log.h>
-
 #include "bitmap.h"
 #include "oku_types.h"
+#include "oku_err.h"
+#include "oku_mem.h"
 
 /************************/
 /* Forward Declarations */
 /************************/
 
+/* Pixel operations */
 static void px_toggle(byte *contains_px, byte bitmask);
 static void px_unset(byte *contains_px, byte bitmask);
 static void px_set(byte *contains_px, byte bitmask);
-static size_t xy_to_index(size_t pitch, coordinate x, coordinate y);
+
+/* Dimensional analysis */
+static resolution bitmap_height(BITMAP *bmp);
+static size_t xy_to_index(members pitch, coordinate x, coordinate y);
 static byte x_to_bitmask(coordinate x);
+
+/* Validation */
 static int check_coordinates(resolution width, resolution height,
 			     coordinate x, coordinate y);
 static int check_bitmap(BITMAP *bmp);
-
+static int check_bitmaps_fit(BITMAP *bmp, BITMAP *rectangle,
+			     coordinate x, coordinate y);
 /************************/
 /* Interface Definition */
 /************************/
 
-/* Function: bitmap_create
+/* Function: bitmap_create()
 
-   Determines required metrics of new bitmap object based on device
-   dimensions. Results are stored in bmp.
+   Allocates memory for bitmap objects. Determines required metrics of
+   new bitmap object based on device dimensions. Results are stored in
+   bmp. Returns handle to bitmap object, or NULL with invalid
+   arguements. Exits on memory error.
 
-   bmp - Bitmap object.
-   width - Pixel count in width.
-   height - Pixel count in height.
-
-   Returns:
-   0 Success.
-   1 Invalid width or height, errno set to EINVAL.
-*/
-int
-bitmap_create(BITMAP *bmp, resolution width, resolution height)
+   width  - pixel resolution (count).
+   height - pixel resolution (count). */
+BITMAP *
+bitmap_create(resolution width, resolution height)
 {
-    if (width == 0 || height == 0) {
-	log_err("Invalid bitmap dimensions %huW%huH px.",
-		width, height);
-	errno = EINVAL;
-	return 1;
-    }
+    if (width == 0 || height == 0)
+	return NULL;
+
+    BITMAP *bmp = oku_alloc(sizeof *bmp); /* exit on failure */
 
     /* When the pixel count is not a factor of 8, a partially filled
        byte with 'don't care' bits is required. */
     bmp->pitch  = width % 8 ? (width / 8) + 1 : width / 8;
     bmp->length = bmp->pitch * height;
-    bmp->width = width;
-    bmp->buffer = NULL;		/* must be manually assigned */
+    bmp->width  = width;
 
-    log_info("%huW x %uH px device:\n\t"
-	     "New %huW x %huH px bitmap created (Total %zuB),\n\t"
-	     "%zuBit(s) unused in each %zuB row.",
-	     width, height,
-	     bmp->width, bmp->length / bmp->pitch, bmp->length,
-	     bmp->width % 8, bmp->pitch);
+    /* Allocate memory for bitmap buffer (exits on failure). */
+    bmp->buffer = oku_arrayalloc(bmp->length, sizeof bmp->length);
 
-    return 0;
+    return bmp;
 }
 
-/* Function: bitmap_modify
+/* Function: bitmap_modify()
 
    Sets, unsets or toggles the colour of the pixels at the given
    coordinates according to the given mode.
 
-   bmp - Bitmap object (bmp->buffer must be allocated).
    x,y - Cartesian coordinates of pixel.
    mode - Set to black, white or toggle pixel colour.
    pixel_colour - device logical representation of a black pixel
@@ -128,90 +122,67 @@ bitmap_create(BITMAP *bmp, resolution width, resolution height)
 */
 int
 bitmap_modify_px(BITMAP *bmp, coordinate x, coordinate y,
-		 enum SET_PIXEL_MODE mode, int black_colour)
+		 enum SET_PIXEL_MODE mode)
 {
-    if ( check_bitmap(bmp) ) {
-	log_err("Invalid bitmap.");
-	errno = ECANCELED;
-	return 1;
-    }
+    int err = OK;
 
-    /*  Length of the buffer divided by the pitch gives height of the
-	display in pixels */
-    if ( check_coordinates(bmp->width, bmp->length / bmp->pitch, x, y) ) {
-	log_err("Invalid coordinates.");
-	errno = EINVAL;
-	return 2;
-    }
-    
-    /* Obtain the byte containing the bit and calculated the bit
+    /* Validate inputs */
+    err = check_bitmap(bmp);
+    if (err > 0) goto out;
+    err = check_coordinates(bmp->width, bitmap_height(bmp), x, y);
+    if (err > 0) goto out;
+
+    /* Obtain the byte containing the bit and calculate the bit
        number */
     byte *contains_px = bmp->buffer + xy_to_index(bmp->pitch, x, y);
     byte bitmask = x_to_bitmask(x);
 
-    /* If the device does not conform to the convention of a black
-       pixel being represented by a logical 1, then the operating
-       modes must be reversed. This does not effect toggle mode which
-       always inverts the bit.  */
-    if (black_colour == 0 || mode == SET_PIXEL_BLACK)
-	mode = SET_PIXEL_WHITE;
-    else if (black_colour == 0 || mode == SET_PIXEL_WHITE)
-	mode = SET_PIXEL_BLACK;
-    
     switch (mode) {
     case SET_PIXEL_TOGGLE: px_toggle(contains_px, bitmask); break;
-    case SET_PIXEL_BLACK:  px_unset(contains_px, bitmask);  break;
-    case SET_PIXEL_WHITE:  px_set(contains_px, bitmask);    break;
+    case SET_PIXEL_BLACK:  px_set(contains_px, bitmask);  break;
+    case SET_PIXEL_WHITE:  px_unset(contains_px, bitmask);    break;
+    default: err = ERR_INPUT; /* should not reach */
     }
-	
-    return 0;
+
+ out:	
+    return err;
 }
 
-/* Function: bitmap_clear
+/* Function: bitmap_clear()
 
-   Clear the bitmap by setting each pixel to white.
-
-   bmp - Bitmap object (bmp->buffer must be allocated)
-   black_colour - logical representation of a black pixel
-
-   Returns:
-   0 Success.
-   1 Invalid black_colour, errno set to EINVAL.
-   2 Invalid bitmap, errno set the ECANCELED.
- */
+   Clear the bitmap by setting each pixel to white (0x00). */
 int
-bitmap_clear(BITMAP *bmp, int black_colour)
+bitmap_clear(BITMAP *bmp)
 {
-    if (black_colour != 0 && black_colour != 1) {
-	log_err("Invalid black representation.");
-	errno = EINVAL;
-	return 1;
-    }
+    int err = check_bitmap(bmp);
+    if (err > 0) return err;
 
-    if ( check_bitmap(bmp) ) {
-	log_err("Invalid bitmap.");
-	errno = ECANCELED;
-	return 2;
-    }
+    for (members i = 0; i < bmp->length; ++i)
+	bmp->buffer[i] = 0x00;
 
-    /* If black is represented by zero, each pixel in byte to white
-       0xFF. Do inverse if black represented by 1. */
-    for (unsigned int i = 0; i < bmp->length; ++i)
-	bmp->buffer[i] = black_colour ? 0x00 : 0xFF;
-
-    log_info("Bitmap cleared.");
-
-    return 0;
+    return OK;
 }
 
-/* Function: bitmap_copy
+/* Function: bitmap_copy()
 
    Copy rectangle into bitmap buffer. It is likely that the two
    buffers are not byte aligned.
 
    The x and y coordinates are used to determine rectangle's target
    origin within bmp. The bits in input rectangle are then correctly
-   aligned and copied into the bitmap in two operations.
+   aligned and copied into the bitmap in two operations as shown
+   below.
+
+    [1] Correct misalignment in input byte. Wipe bits to be replaced
+	in output and combine with OR.
+
+    [2] Retreive bits from input byte previously ignored. Wipe bits to
+	be repaced in next output byte and combine with OR.
+
+    [3] One full byte of input copied, increment appropriately.
+
+    [4] preserve horizontal alignment, when the end of one row reached
+	in rectangle, also move to new line in bitmap.
 
    Returns:
    0 Success.
@@ -220,67 +191,73 @@ bitmap_clear(BITMAP *bmp, int black_colour)
 int
 bitmap_copy(BITMAP *bmp, BITMAP *rectangle, coordinate xmin, coordinate ymin)
 {
-    /* Ensure bitmaps are assigned and non 0. */
-    if ( check_bitmap(bmp) || check_bitmap(rectangle) ) {
-	log_err("Invalid bitmap.");
-	errno = ECANCELED;
-	return 1;
-    }
+    int err = OK;
 
-    /* Pixel counts in rectangle */
-    resolution in_width   = rectangle->width;
-    resolution in_height  = rectangle->length / rectangle->pitch;
-    resolution out_width  = bmp->width;
-    resolution out_height = bmp->length / bmp->pitch;
-
-    /* Ensure rectangle fits inside bmp */
-    if ( xmin + in_width  >= out_width  ||
-	 ymin + in_height >= out_height ) {
-	log_err("Cannot copy, input dimensions exceed bitmap limits.");
-	errno = EINVAL;
-	return 2;
-    }
+    /* Validate inputs */
+    err = check_bitmap(bmp) || check_bitmap(rectangle);
+    if (err > 0) goto out;
+    err = check_bitmaps_fit(bmp, rectangle, xmin, ymin);
+    if (err > 0) goto out;
 
     /* Determine the start of input rectangle and its origin in
        output. */
     byte *in = rectangle->buffer;
     byte *out = bmp->buffer + xy_to_index(bmp->pitch, xmin, ymin);
 
-    byte bitnumber = xmin % 8;	/* Bit position of misalignment */
-    size_t count = 0;	      /* Bytes from input written to output */
+    byte misalignment = xmin % 8;
+    members written = 0;	          /* Bytes from input written to output */
 
-    while ( count < rectangle->length ) {
-	/* Correct misalignment in input byte. Wipe bits to be
-	   replaced in output and combine with OR. */
-	*out = (*in >> bitnumber) |  (*out & ~(0xFF >> bitnumber));
-
-	/* Retreive bits from input byte previously ignored. Wipe bits
-	   to be repaced in next output byte and combine with OR. */
-	++out;
-	*out = (*in << (8 - bitnumber)) | (*out & 0xFF >> bitnumber);
-
-	/* One full byte of input copied increment appropriately. */
-	++in;
-	++count;
-
-	/* To preserve horizontal alignment, when the end of one row
-	   reached in rectangle, also move to new line in bitmap. */
-	if (count % rectangle->pitch == 0)
+    while ( written < rectangle->length ) {
+	/* [1] - See function comments for process logic. */
+	*out = (*in >> misalignment) |  (*out & ~(0xFF >> misalignment));
+	++out;			             /* [2] */
+	*out = (*in << (8 - misalignment)) | (*out & 0xFF >> misalignment);
+	++in;			             /* [3] */
+	++written;
+	if (written % rectangle->pitch == 0) /* [4] */
 	    out += bmp->pitch - rectangle->pitch;
     }
 
-    log_info("Rectangle copy complete:\n\t"
-	     "Location in bitmap: (%u,%u) -- (%u,%u).\n\t"
-	     "Rectangle dimensions: %uW x %uH px, (%zuB).",
-	     xmin, ymin, xmin + in_width - 1, ymin + in_height - 1,
-	     in_width, in_height, rectangle->length);
+ out:
+    return err;
+}
 
-    return 0;
+/* Function: bitmap_destroy()
+
+   Frees all memory associated with bitmap object. */
+int
+bitmap_destroy(BITMAP *bmp)
+{
+    if (bmp == NULL)
+	goto fail;
+    if (bmp->buffer == NULL)
+	goto fail;
+
+    oku_free(bmp->buffer);
+    oku_free(bmp);
+
+    return OK;
+ fail:
+    return ERR_UNINITIALISED;
 }
 
 /********************/
 /* Static Functions */
 /********************/
+
+/* Static Function: bitmap_length()
+
+   Returns the resolution of the bitmap in pixels.
+
+   The height of the bitmap in pixels is the buffer length divided by
+   the pitch, regardless of the presence of unused bits in the last
+   byte of the pitch. This is also equal to the number of bytes store
+   one column of data. */
+static resolution
+bitmap_height(BITMAP *bmp)
+{
+    return bmp->length / bmp->pitch;
+}
 
 /* Static Function: px_toggle
 
@@ -333,12 +310,9 @@ px_set(byte *contains_px, byte bitmask)
 
    pitch - Count of bytes in width.
    
-   x, y - 2D Cartesian coordinates.
-
-   Returns: Array index of byte containing pixel.
-*/
-static size_t
-xy_to_index(size_t pitch, coordinate x, coordinate y)
+   x, y - 2D coordinates. */
+static members
+xy_to_index(members pitch, coordinate x, coordinate y)
 {
     return (y * pitch) + (x / 8);
 }
@@ -347,13 +321,9 @@ xy_to_index(size_t pitch, coordinate x, coordinate y)
 
    Returns a mask with the bit defining a pixel at the provided
    coordinates with x coordinate set to 1 and all other bits set to
-   0. Mathematically, bit number requires only the x coordinate. Most
-   significant bit stores pixel data closest to origin.
-
-   x - Cartesian coordinate
-
-   Returns: Bit mask for pixel at given x coordinate.
-*/
+   0. Mathematically, the calculation requires only the x
+   coordinate. Most significant bit stores pixel data closest to
+   origin. */
 static byte
 x_to_bitmask(coordinate x)
 { 
@@ -378,22 +348,30 @@ static int
 check_coordinates(resolution width, resolution height,
 		  coordinate x, coordinate y)
 {
-    return (x >= width || y >= height) ? 1 : 0;
+    return (x >= width || y >= height) ? ERR_INPUT : OK;
 }
 
-/* Static function: check_bitmap
+/* Static function: check_bitmap()
 
-   Check all numerical bitmap fields are non zero.
-
-   bmp - Bitmap object.
-
-   Returns:
-   0 Valid dimensions.
-   1 Invalid dimensions.
-*/
+   Check all numerical bitmap fields are non zero. */
 static int
 check_bitmap(BITMAP *bmp)
 {
-    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->width == 0 )
-	? 1 : 0;
+    return ( bmp->length == 0 || bmp->pitch == 0 || bmp->width == 0
+	     || bmp->buffer == NULL )
+	? ERR_UNINITIALISED : OK;
 }
+
+/* Static function: check_bitmaps_fit()
+
+   Check that rectangle fits inside bmp considering the origin of
+   rectangle is the coordinates (x,y) within bmp. */
+static int
+check_bitmaps_fit(BITMAP *bmp, BITMAP *rectangle,
+		  coordinate x, coordinate y)
+{
+    return x + rectangle->width >= bmp->width
+	|| y + bitmap_height(rectangle) >= bitmap_height(bmp)
+	? ERR_INPUT : OK;
+}
+

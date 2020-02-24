@@ -37,40 +37,44 @@
 #ifndef SPI_H
 #define SPI_H
 
-#include <stddef.h>
-
 #include "oku_types.h"
 
+/* Operating modes from GPIO pins. */
 enum SPI_PINMODE
     { SPI_PINMODE_INPUT, SPI_PINMODE_OUTPUT,
-      SPI_PINMODE_PWM, SPI_PINMODE_CLOCK };
+      SPI_PINMODE_PWM,   SPI_PINMODE_CLOCK };
 
-/* Initialises WiringPI SPI interface with Broadcom GPIO pin numbers.
-   Returns: 0 Success.
-            1 Error, sets errno to EIO. */
+/* GPIO levels, dictated by return value of digitalRead() in
+   wiringPI library. */
+enum GPIO_LEVEL
+    { GPIO_LEVEL_ERROR = -1,
+      GPIO_LEVEL_LOW   =  0,
+      GPIO_LEVEL_HIGH  =  1 };
+
+/*************/
+/* Interface */
+/*************/
+
+/* All interface functions with int type return values return error
+   codes defined in oku_err.h */
+
+/* Initialises WiringPI SPI interface with Broadcom GPIO pin numbers. */
 int spi_init_gpio(void);
 
 /* Sets GPIO pin to 'mode' */
 void spi_gpio_pinmode(int pin, enum SPI_PINMODE mode);
 
 /* Write the logic level of a given GPIO pin to the provided value */
-void spi_gpio_write(int pin, int value);
+int spi_gpio_write(int pin, enum GPIO_LEVEL pin_level);
 
-/* Read the logic level of a given GPIO pin
-   Returns: 0  GPIO low voltage.
-            1  GPIO high voltage.
-	    -1 Error, errno set to EIO */
-int spi_gpio_read(int pin);
+/* Read the logic level of a given GPIO pin */
+enum GPIO_LEVEL spi_gpio_read(int pin);
 
-/* Open spi interface.
-   Returns: 0  Success.
-            1  Error, sets errno to EIO. */
+/* Open spi interface. */
 int spi_open(int channel, int speed);
 
-/* Write n bytes to SPI interface.
-   Returns: 0  Success.
-            1  SPI Error, errno set to EIO */
-int spi_write(byte *data, size_t len);
+/* Write len bytes to SPI interface. */
+int spi_write(byte *data, int len);
 
 /* Generic delay (guaranteed minimum delay time) */
 void spi_delay(unsigned int time);

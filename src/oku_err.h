@@ -29,7 +29,8 @@
 
 /* Description:
 
-   Defines error number enumeration and descriptive strings.
+   Defines error number enumeration and provides interface for
+   accessing descriptive strings.
 */
 
 #ifndef OKU_ERR_H
@@ -37,12 +38,20 @@
 
 enum OKU_ERRNO
     {
-     OKU_OK                            = 0x00, /* No error */
-     OKU_INVALID_ARGS                  = 0x01,
-     
-     
-     
-
+     /* No errors */
+     OK                            = 0x00,
+     /* Errors (Positive) */
+     ERR_INPUT                     = 0x01,
+     ERR_COMMS                     = 0x02,
+     ERR_MEM                       = 0x03,
+     ERR_IO                        = 0x04,
+     ERR_UNINITIALISED             = 0x05,
+     ERR_PARTIAL_WRITE   	   = 0x06,
+     ERR_BUSY                      = 0x07,
+     /* Warnings (Negative) */
+     WARN_ROOT                     = -0x01
     };
+
+
 
 #endif	/* OKU_ERR_H */

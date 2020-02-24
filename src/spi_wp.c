@@ -25,17 +25,15 @@
  *
  */
 
-#include <unistd.h>
-#include <stddef.h>
-#include <errno.h>
+#include <unistd.h>		/* read() */
+#include <errno.h>		/* errno */
+
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
-#include <ert_log.h>
 
 #include "spi.h"
+#include "oku_err.h"
 #include "oku_types.h"
-
-#define BACKEND "WiringPi"
 
 /* Static storage and retrival of file descriptor number for use with
    write() */
@@ -43,122 +41,78 @@ static int spi_fid = -1;
 
 /*** Interface  ***/
 
-/* Initialises WiringPI SPI interface with Broadcom GPIO pin numbers.
-
-   Returns: 0 Success.
-            1 Error, sets errno to EIO. */
+/* Initialises WiringPI SPI interface with Broadcom GPIO pin
+   numbers. */
 int
 spi_init_gpio(void)
 {
     wiringPiSetupGpio();	/* returns void but sets errno */
-
-    /* Process errno */
     switch (errno) {
-    case EACCES:		/* not root */
-	/* Not a critical error as many systems can communicate
-	   without root privilages, error number should be reset even
-	   if warning is complited out. */
-	log_warn("GPIO operating %s without root privileges,\n\t"
-		 "this may work dependant on hardware configuration.", BACKEND);
-	if (LOGLEVEL < 1)				
-	    errno = 0;
-
-    case 0:			/* no error */
+    case 0:			/* No error */
 	break;
-		
+    case EACCES:		/* not root (not critical) */
+	errno = 0;
+	return WARN_ROOT;
     default:			/* Critical error */
-	log_err("Failed to initialise GPIO interface with %s", BACKEND);
-	errno = EIO;
-	return 1;
+	return ERR_IO;
     }
 
-    return 0;
+    return OK;
 }
 
-/* Sets GPIO pin to provided mode.  */
+/* Sets GPIO pin to provided mode. */
 void
 spi_gpio_pinmode(int pin, enum SPI_PINMODE mode)
 {
-    //log_debug("%s setting pin %d to %d", BACKEND, pin, mode);
-    pinMode(pin, mode);
-    return;
+    return pinMode(pin, mode);
 }
 
-/* Opens spi interface and stores the file descriptor in spi_fid.
 
-   Returns: 0  Success.
-            1  Error, errno set to EIO */
+/* Opens spi interface and stores the file descriptor in spi_fid. */
 int
 spi_open(int channel, int speed)
 {
-    log_info("Opening SPI interface (channel %d %dHz) with %s backend",
-	     channel, speed, BACKEND);
-
-    int fid = wiringPiSPISetup(channel, speed);
-    if (fid < 0) {
-	log_err("Failed to set channel %d to %dHz with %s backend",
-		  channel, speed, BACKEND);
-	errno = EIO;
-	return 1;
-    }
-
-    spi_fid = fid;		/* storage of spi_fid */
-    return 0;
+    return (spi_fid = wiringPiSPISetup(channel, speed)) < 0
+	? ERR_COMMS : OK;
 }
 
 /* Set the value of the given GPIO pin  */
-void
-spi_gpio_write(int pin, int value)
+int
+spi_gpio_write(int pin, enum GPIO_LEVEL pin_level)
 {
-    log_debug("Setting pin %02d to %02d with %s backend",
-	     pin, value, BACKEND);
-    digitalWrite(pin, value);
-    return;
+    if ( pin_level == GPIO_LEVEL_ERROR )
+	return ERR_COMMS;
+
+    digitalWrite(pin, pin_level);
+
+    return OK;
+
 }
 
 /* Get the value of a given GPIO pin
 
-   Returns: 0  GPIO low voltage.
-            1  GPIO high voltage.
-	    -1 Error, errno set to EIO */
-int
+   Return values are cast to enum GPIO_LEVEL defined in spi_wp.h
+   mimics the output from WiringPI: 0 GPIO low voltage; 1 GPIO high
+   voltage; -1 Error. */
+enum GPIO_LEVEL
 spi_gpio_read(int pin)
 {
     return digitalRead(pin);
 }
 
-/* Write n bytes to SPI interface.
-
-   Returns: 0, on success.
-            1 Error, sets ERRNO to EIO or EBADF*/
+/* Write n bytes to SPI interface. */
 int
-spi_write(byte *data, size_t len)
+spi_write(byte *data, int len)
 {
-    if (spi_fid < 0) {
-	log_err("Invalid file descriptor %d (%d)");
-	errno = EBADF;
-	return 1;
-    }
+    if (spi_fid < 0)
+	return ERR_UNINITIALISED;
 
-    int res = write(spi_fid, data, len);
-
-    /* Safe to compare signed and unsigned after checking that the
-       signed is not negative. */
-    if (res < 0 || (size_t) res < len) {
-    	log_err("SPI write failure (%d)", res);
-    	errno = EIO;
-    	return 1;
-    }
-
-    return 0;
+    return write(spi_fid, data, len) < len ? ERR_PARTIAL_WRITE : OK;
 }
-	      
-
 
 /* Generic delay (guaranteed minimum delay time) */
 void
 spi_delay(unsigned int time)
 {
-    delay(time);
-    return;
+    return delay(time);
 }
