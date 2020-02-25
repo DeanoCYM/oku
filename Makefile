@@ -13,7 +13,7 @@ INCLUDE= -I./src -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) $(INCLUDE)
 
 # Definition of target executable and libraries
-TARGET=oku_test
+TARGET=oku
 OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o #text_${RENDER}.o
 
 .PHONY: all clean tags test sync emulate
@@ -37,8 +37,7 @@ tags:
 	etags src/*.c src/*.h
 
 test: clean all
-	-valgrind --leak-check=full --errors-for-leak-kinds=all \
-	--error-exitcode=33 --quiet ./$(TARGET)
+	valgrind ./$(TARGET)
 
 sync: clean
 	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)

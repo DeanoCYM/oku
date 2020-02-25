@@ -27,10 +27,14 @@
  * SOFTWARE.
  */
 
-/* Description: */
+/***************/
+/* Description */
+/***************/
+/* Decode UTF-8 stream into unicode codepoint integers. */
 
-#include <stdio.h>
+#include <stdio.h> 		/* FILE* */
 
+#include "oku_err.h"
 #include "oku_types.h"
 
 /*************/
@@ -41,12 +45,10 @@
 #define CHAR_MISSING 0x000025A1 /* Replaces an invalid or
 				   unrecognizable character. Indicates
 				   a Unicode error. */
-
 /************************/
 /* Forward Declarations */
 /************************/
 
-static int file_read_n_bytes(FILE *src, byte *dest, unsigned *n);
 static int file_read_seq(FILE *src, byte *dest, unsigned *n);
 static unsigned seq_nbytes(byte first);
 static codepoint utf8tocp(byte *utf8, unsigned len);
@@ -55,54 +57,39 @@ static codepoint utf8tocp(byte *utf8, unsigned len);
 /* Interface Functions */
 /***********************/
 
-/* Function: utf8_next()
+/* Function: utf8_ftocp()
 
    Determines the next codepoint in a UTF-8 file and stores the value
-   in out
+   in *out.
 
    On successful decode of UTF-8 sequence into a unicode codepoint,
-   codepoint is stored in out and 0 is returned.
+   codepoint is stored in *out.
 
-   If invalid character is detected -1 is returned and an appropriate
-   placeholder character is stored in codepoint.
-
-   If the file cannot be read, 1 is returned and codepoint is set the
-   the placeholder character. */
+   If invalid character is read, the appropriate placeholder codepoint
+   is stored in *out and a warning code returned. */
 int
-utf8_nextchar(FILE *src, codepoint *out)
+utf8_ftocp(FILE *src, codepoint *out)
 {
     /* Create a buffer for a utf-8 sequence (maximum four bytes) */
     byte utf8[4] = { 0x00, 0x00, 0x00, 0x00 };
     unsigned length = 0;
+    int err = OK;
+
+    err = file_read_seq(src, utf8, &length);
+    if (err > 0)
+	goto out;
     
-    if ( 0 > file_read_seq(src, utf8, &length) ) {
-	log_err("Failed to read file");
-	return 1;
-    }
-	
     *out = utf8tocp(utf8, length);
+    if ( *out == CHAR_INVALID )
+	err = WARN_REPLACEMENT_CHAR;
 
-    if ( *out == CHAR_INVALID ) {
-	log_warn("Invalid character U+%04lu.", codepoint));
-	return -1;
-    }
-
-    return 0;
+ out:
+    return err;
 }
 
 /********************/
 /* Static Functions */
 /********************/
-
-/* Static Function: file_read_n_bytes()
-
-   Reads n bytes from src and stored them in dest. Returns 0 if the
-   expected number of bytes are read or otherwise returns 1. */
-static int
-file_read_n_bytes(FILE *src, int n, byte *dest)
-{
-    return fread(dest, sizeof *dest, n, src) == n ? 0 : 1
-}
 
 /* Function: seq_nbytes()
 
@@ -131,11 +118,11 @@ file_read_n_bytes(FILE *src, int n, byte *dest)
 static unsigned
 seq_nbytes(byte first)
 {
-    const unsigned len_decode[32] =
+    const unsigned utf8_len_decode[32] =
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	  0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 4, 0 };
 
-    return len_decode[first >> 3];
+    return utf8_len_decode[first >> 3];
 }
 
 /* Function: file_read_seq()
@@ -152,7 +139,7 @@ file_read_seq(FILE *src, byte *dest, unsigned *n)
     /* Read first byte, do not increment buffer as the first byte
        is required to determine the number of trailing bytes. */
     if ( 1 != fread(dest, sizeof *dest, 1, src) )
-	return 1;
+	return ERR_IO;
 
     /* Record length of the sequence in bytes. This count is one
        greater than the number of trailing bytes remaining to be
@@ -161,7 +148,8 @@ file_read_seq(FILE *src, byte *dest, unsigned *n)
 
     /* Read each trailing byte, remembering that the first byte has
        already been read from src and recorded in dest.  */
-    return fread(dest, sizeof *(dest+1), *n - 1, src) != (*n - 1) ? 1 : 0;
+    return fread(dest, sizeof *(dest+1), *n - 1, src) != (*n - 1)
+	? ERR_IO : OK;
 }
 
 /* Function: utf8tocp()
@@ -171,7 +159,7 @@ file_read_seq(FILE *src, byte *dest, unsigned *n)
    codepoint is returned.
 
 */
-static int
+static codepoint
 utf8tocp(byte *utf8, unsigned len)
 {
     /* Maximum allowable unicode length is . */

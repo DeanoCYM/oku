@@ -1,4 +1,4 @@
-/* oku.h
+/* cpqueue.c
  * 
  * This file is part of oku.
  *
@@ -27,20 +27,31 @@
  * SOFTWARE.
  */
 
-/* Description:
+/***************/
+/* Description */
+/***************/
 
-*/
+/* Unicode Codepoint Queue.
 
-#ifndef OKU_H
-#define OKU_H
+   FIFO linked list for holding 32bit unicode codepoint data. */
 
-/* Cartesian coordinates */
-typedef unsigned short int coordinate;
-typedef size_t index;
-typedef size_t px;		/* ??? */
+#include "bitmap.h"
 
-typedef unsigned char byte;
+typedef struct CP_NODE {
+    codepoint unicode;		/* 32bit unicode codepoint */
+    BITMAP rendering;		/* Rendered gylph bitmap */
+    resolution advance;		/* Advance width in px */
+    coordinate x, y;		/* Start pixel coordinates */
+    CP_NODE next;	/* Next node in list */
+} CP_NODE;
 
+typedef struct CP_QUEUE {
+    unsigned count;
+    struct CODEPOINT_NODE *head, *tail;
+} CP_QUEUE;
+    
 
+CP_QUEUE *buffer_queue_create(void);
+CP_NODE *buffer_node_create(void);
 
-#endif	/* OKU_H */
+int buffer_queue_destroy(CODEPOINT

@@ -47,16 +47,13 @@
    inverse of the portable bitmap format (PMB) provided by
    bitmap.h. Consequently, before writing bitmap data to ram, bytes
    must be inverted.
-
  */
 
 #include "epd.h"
 #include "spi.h"
 #include "oku_types.h"
 #include "oku_mem.h"
-
-#include <ert_log.h>
-#include <errno.h>
+#include "oku_err.h"
 
 /**********************/
 /* Device Information */
@@ -511,10 +508,7 @@ ram_set_window(coordinate xmin, coordinate xmax,
 /* Static function: ram_set_cursor.
 
    Sets the RAM cursor for next bitmap write. Takes coordinates that
-   represent number of pixels from display origin.
-
-   Returns: 0  Success.
-            1  Fail, errno set to ECOMM. */
+   represent number of pixels from display origin. */
 static int 
 ram_set_cursor(coordinate x, coordinate y)
 {

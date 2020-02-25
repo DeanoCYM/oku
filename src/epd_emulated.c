@@ -34,11 +34,11 @@
  * 
  */
 
-#include <ert_log.h>
-#include <stdio.h>
+#include <stdio.h>		/* FILE* */
 
 #include "epd.h"
 #include "oku_types.h"
+#include "oku_err.h"
 #include "oku_mem.h"
 
 /**********************/

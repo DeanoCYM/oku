@@ -1,4 +1,4 @@
-/* oku_err.h
+/* cpqueue.c
  * 
  * This file is part of oku.
  *
@@ -27,22 +27,10 @@
  * SOFTWARE.
  */
 
-/* Description:
+/***************/
+/* Description */
+/***************/
 
-   Error handling.
-*/
+/* Unicode Codepoint Queue.
 
-#define STR_MAX 64
-
-/* Error messages are associated with  */
-const char * const errstr[STR_MAX] =
-    {
-     "Invalid argument(s).",				  /* 0x01 */
-     "Problem communicating with EPD.",			  /* 0x02 */
-     "Memory error."					  /* 0x03 */
-     "Input output error."				  /* 0x04 */
-     "Uninitialised or unallocated variable."		  /* 0x05 */
-     "Incomplete write."				  /* 0x06 */
-    };
-    
-const char * const errstr[STR_MAX] =
+   FIFO linked list for holding 32bit unicode codepoint data. */

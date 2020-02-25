@@ -26,7 +26,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <stdlib.h>
+#include <stdlib.h>		/* malloc etc, size_t */
 
 #include "oku_mem.h"
 #include "oku_err.h"

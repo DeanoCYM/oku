@@ -40,7 +40,6 @@
 
 #include <stdio.h>		/* FILE * */
 
-#include "oku_err.h"
 #include "oku_types.h"
 
 /***********/

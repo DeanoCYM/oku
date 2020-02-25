@@ -35,17 +35,16 @@
 #define TEXT_H
 
 #include "bitmap.h"
-#include "utf8.h"
+#include "wordlist.h"
 #include "oku_types.h"
 
 struct TEXTBOX {
-    char *fontfile;	      /* Path to font file */
-    char *textfile;	      /* Path to text file */
-    unsigned short fontsize; /* font size in pixels */
-    codepoint string[200];   /* UTF string */
-    struct BITMAP *bmp;	      /* Bitmap to contain string text */
-    coordinate x, y;	      /* Cursor used when writing text */
-}; 
+    FILE *text, *font;		/* Font and text files */
+    unsigned fontsize;		/* Fontsize in pixels */
+    WORDLIST *textbuf;		/* Unicode buffer */
+    BITMAP *box;		/* Bitmap to render onto */
+    coordinate x, y;		/* Cursors */
+};
 
 int textbox_init(struct TEXTBOX *txt);
 int textbox_close(struct TEXTBOX *txt);

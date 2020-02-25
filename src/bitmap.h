@@ -49,8 +49,6 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include <stddef.h>		/* size_t typdef */
-
 #include "oku_types.h"
 
 /***********/

@@ -49,7 +49,8 @@ enum OKU_ERRNO
      ERR_PARTIAL_WRITE   	   = 0x06,
      ERR_BUSY                      = 0x07,
      /* Warnings (Negative) */
-     WARN_ROOT                     = -0x01
+     WARN_ROOT                     = -0x01,
+     WARN_REPLACEMENT_CHAR         = -0x02
     };
 
 

@@ -1,4 +1,4 @@
-/* oku_test.c
+/* oku.c
  * 
  * This file is part of oku.
  *
@@ -29,7 +29,7 @@
 
 /* Description:
 
-   Functional test of oku.
+   E-book reader.
 
 */
 
@@ -41,8 +41,10 @@
 #include "epd.h"		/* Device specific commands */
 #include "bitmap.h"		/* Bitmap manipulation */
 #include "text.h"		/* Font rendering */
+#include "oku_err.h"		/* Error codes */
+#include "oku_types.h"		/* Type definitions */
 
-uint8_t rect[] = 
+uint8_t binary_pattern[] = 
     { 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03,
       0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07, 0x07,
       0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A, 0x0B, 0x0B,
@@ -75,7 +77,7 @@ draw_binary_pattern(struct BITMAP *bmp)
     BITMAP *rectangle = bitmap_create(2 * 8, 16);
 
     byte *old = rectangle->buffer;
-    rectangle->buffer = rect;
+    rectangle->buffer = binary_pattern;
 
     int err = bitmap_copy(bmp, rectangle, 2, 250);
     if (err > 0)
@@ -87,38 +89,53 @@ draw_binary_pattern(struct BITMAP *bmp)
     return err;
 }
 
+void
+die(int err, char *errstr)
+{
+    log_err("%s", errstr);
+    exit(err);
+    return;
+}
+
 int main(int argc, char *argv[])
 {
-    log_info("Testing oku with %s.", argv[argc-1]);
-    log_debug("Running %s in degbug mode.", argv[argc-1]);
-
     enum OKU_ERRNO err = OK;
 
-    /* Communication with display hardware is performed using the EPD
-       object and epd.h interface. */
-    EPD *epd = epd_create();
-    err = epd_on(epd);
-    if (err > 0) {
-	log_err("Failed to start device.");
-	exit(err);
+    /**** PROCESS ARGUEMENTS ****/
+
+    if ( argc < 4 ) {
+	printf("%s <textfile> <fontsize> <fontpath>", argv[0]);
+	return ERR_INPUT;
     }
 
-    /* Create a bitmap for the display device */
+    char *textpath    = argv[1];
+    unsigned fontsize = atoi(argv[2]);
+    char *fontpath    = argv[3];
+
+    /**** DEVICE INITIALISATION ****/
+
+    EPD *epd = epd_create();
+    err = epd_on(epd);
+    if (err > 0)
+	die(err, "Failed to start device.");
+
     BITMAP *bmp = bitmap_create(epd->width, epd->height);
     
-    /* Draw some features to the device bitmap */
-    err = draw_lines(bmp) || draw_binary_pattern(bmp);
-    if (err > 0) {
-	log_err("Failed to write to bitmap");
-	exit(err);
-    }
+    /**** TEXT PROCESSING ****/
+
+    /* Create a textbox object and associate it to the device's bitmap
+       buffer to use the entire area of the device. */
+    TEXTBOX *txt = textbox_create(bmp, textpath, fontsize, fontpath);
     
+
+
+
+    /**** DISPLAY AND SHUTDOWN ****/
+
     /* Display bitmap on device */
     err = epd_display(epd, bmp->buffer, bmp->length);
-    if (err > 0) {
-	log_err("Failed to display bitmap");
-	exit(err);
-    }
+    if (err > 0)
+	die(err, "Failed to display bitmap");
 
     /* Clean up */
     err = epd_off(epd) || bitmap_destroy(bmp) || epd_destroy(epd);
@@ -128,3 +145,10 @@ int main(int argc, char *argv[])
     return err;
 }
 
+
+
+    /* Draw some features to the device bitmap */
+//    err = draw_lines(bmp) || draw_binary_pattern(bmp);
+//    if (err > 0)
+//	die(err, "Failed to write to bitmap");
+    

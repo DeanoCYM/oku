@@ -35,11 +35,8 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <unistd.h>		/* access() */
-
 #include "oku_types.h"
 #include "text.h"
-#include "bitmap.h" 		/* remove after debugging */
 
 #define UNKNOWN_CHARACTER { 0x00, 0xEF, 0xBF, 0xBD };
 
