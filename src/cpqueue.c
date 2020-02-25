@@ -34,3 +34,11 @@
 /* Unicode Codepoint Queue.
 
    FIFO linked list for holding 32bit unicode codepoint data. */
+
+#include "oku_types.h"
+
+int
+cpq_create(CP_QUEUE *)
+{
+   ok 
+    

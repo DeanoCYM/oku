@@ -32,7 +32,6 @@
 #include <wiringPiSPI.h>
 
 #include "spi.h"
-#include "oku_err.h"
 #include "oku_types.h"
 
 /* Static storage and retrival of file descriptor number for use with

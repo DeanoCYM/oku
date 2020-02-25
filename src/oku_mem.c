@@ -29,7 +29,6 @@
 #include <stdlib.h>		/* malloc etc, size_t */
 
 #include "oku_mem.h"
-#include "oku_err.h"
 #include "oku_types.h"
 
 void *oku_arrayalloc(members n, size_t bytes_per_member)

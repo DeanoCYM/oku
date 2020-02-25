@@ -53,7 +53,6 @@
 #include "spi.h"
 #include "oku_types.h"
 #include "oku_mem.h"
-#include "oku_err.h"
 
 /**********************/
 /* Device Information */

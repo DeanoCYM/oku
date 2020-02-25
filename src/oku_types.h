@@ -29,7 +29,8 @@
 
 /* Description:
 
-   Defines aliases and describes oku data types.
+   Defines aliases and describes oku data types and error return
+   integers.
 */
 
 #ifndef OKU_TYPES_H
@@ -61,5 +62,23 @@ typedef size_t members;
 /* Unicode codepoint, a numerical value that describes a single
    glyph. */
 typedef unsigned long int codepoint;
+
+/* Error codes */
+enum OKU_ERRNO
+    {
+     /* No errors */
+     OK                            = 0x00,
+     /* Errors (Positive) */
+     ERR_INPUT                     = 0x01,
+     ERR_COMMS                     = 0x02,
+     ERR_MEM                       = 0x03,
+     ERR_IO                        = 0x04,
+     ERR_UNINITIALISED             = 0x05,
+     ERR_PARTIAL_WRITE   	   = 0x06,
+     ERR_BUSY                      = 0x07,
+     /* Warnings (Negative) */
+     WARN_ROOT                     = -0x01,
+     WARN_REPLACEMENT_CHAR         = -0x02
+    };
 
 #endif	/* OKU_TYPES_H */
