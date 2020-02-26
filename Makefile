@@ -6,15 +6,20 @@ SPI_BACKEND?=wp
 DEVICE?=emulated
 RENDER?=freetype
 
-# Complication arguements
+# Compilation variables
 CC=cc
 LIBS= -lwiringPi -lfreetype -lm
 INCLUDE= -I./src -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/harfbuzz -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include 
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) $(INCLUDE)
 
+# CL Arguements
+TEXTFILE=./textfile.utf8
+FONTSIZE=12
+FONTPATH=./DejaVuSans.ttf
+
 # Definition of target executable and libraries
 TARGET=oku
-OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o #text_${RENDER}.o
+OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o cpqueue.o utf8.o
 
 .PHONY: all clean tags test sync emulate
 
@@ -37,7 +42,7 @@ tags:
 	etags src/*.c src/*.h
 
 test: clean all
-	valgrind ./$(TARGET)
+	valgrind ./$(TARGET) $(TEXTFILE) $(FONTSIZE) $(FONTPATH)
 
 sync: clean
 	rsync -rav --exclude '.git' -e ssh --delete . $(REMOTE)
@@ -46,6 +51,7 @@ emulate: DEVICE=emulated
 emulate: test 
 	mupdf display.pbm
 
+#font path doesnt work because it uses device local makefile
 remote: sync
 	ssh pi@pi "cd oku && sed -i 's/emulated/ws29bw/' Makefile && make test"
 

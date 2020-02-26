@@ -35,10 +35,86 @@
 
    FIFO linked list for holding 32bit unicode codepoint data. */
 
+#include "cpqueue.h"
 #include "oku_types.h"
+#include "oku_mem.h"
 
-int
-cpq_create(CP_QUEUE *)
+/* Allocates memory for a new queue */
+CP_QUEUE *
+cpq_create(void)
 {
-   ok 
+    CP_QUEUE *out = oku_alloc(sizeof *out);
+
+    out->count = 0;
+    out->head = NULL;
+    out->tail = NULL;
+
+    return out;
+}
+
+/* Free all memory associated with queue and nodes. */
+int cpq_destroy(CP_QUEUE *cpq)
+{
+    int err = OK;
+    CP_NODE *detached_node;
+
+    while ( cpq->count > 0 ) {
+
+	/* side effect: cpq_dequeue() decrements count */
+	err = cpq_dequeue(cpq, &detached_node);
+	if (err) break;
+
+	err = cpq_delete(detached_node);
+	if (err) break;
+    }
     
+    oku_free(cpq);
+
+    return err;
+}
+
+/* Append a node to the end of the queue */
+int cpq_enqueue(CP_QUEUE *cpq, codepoint unicode)
+{
+    CP_NODE *new = oku_alloc(sizeof *new);
+    new->unicode = unicode;
+    new->next = NULL;
+
+    if (cpq->count == 0) {
+	cpq->head = new;
+	cpq->tail = new;
+    } else {
+	cpq->tail->next = new;
+	cpq->tail = new;
+    }
+
+    ++cpq->count;
+    
+    return OK;
+}
+
+/* Detach a node from the queue */
+int cpq_dequeue(CP_QUEUE *cpq, CP_NODE **out)
+{
+    if ( cpq->count == 0)
+	return WARN_MTBUFFER;
+
+    *out = cpq->head;
+    cpq->head = cpq->head->next;
+
+    if (--cpq->count == 0)
+	cpq->tail == NULL;
+
+    return OK;
+}
+
+/* Free the memory associated with a node */
+int cpq_delete(CP_NODE *delete)
+{
+    if (delete == NULL)
+	return ERR_UNINITIALISED;
+
+    oku_free(delete);
+
+    return OK;
+}

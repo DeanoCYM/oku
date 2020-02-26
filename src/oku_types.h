@@ -34,7 +34,7 @@
 */
 
 #ifndef OKU_TYPES_H
-#define OKU__TYPES_H
+#define OKU_TYPES_H
 
 #include <stddef.h>		/* size_t */
 
@@ -78,7 +78,9 @@ enum OKU_ERRNO
      ERR_BUSY                      = 0x07,
      /* Warnings (Negative) */
      WARN_ROOT                     = -0x01,
-     WARN_REPLACEMENT_CHAR         = -0x02
+     WARN_REPLACEMENT_CHAR         = -0x02,
+     WARN_MTBUFFER                  = -0x03
+
     };
 
 #endif	/* OKU_TYPES_H */

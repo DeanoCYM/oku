@@ -143,7 +143,7 @@ file_read_seq(FILE *src, byte *dest, unsigned *n)
     /* Record length of the sequence in bytes. This count is one
        greater than the number of trailing bytes remaining to be
        read. */
-    *n = utf8_nbytes(*dest);
+    *n = seq_nbytes(*dest);
 
     /* Read each trailing byte, remembering that the first byte has
        already been read from src and recorded in dest.  */

@@ -40,9 +40,9 @@ void *oku_arrayalloc(members n, size_t bytes_per_member)
     return mem;
 }
 
-void *oku_alloc(members n)
+void *oku_alloc(size_t bytes)
 {
-    return oku_arrayalloc(1, n);
+    return oku_arrayalloc(1, bytes);
 }
 
 void oku_free(void *mem)

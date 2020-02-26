@@ -33,7 +33,7 @@
 #include "oku_types.h"
 
 void *oku_arrayalloc(members n, size_t bytes_per_member);
-void *oku_alloc(members n);
+void *oku_alloc(size_t bytes);
 void oku_free(void *mem);
 
 #endif	/* OKU_MEM_H */

@@ -36,26 +36,26 @@
    FIFO linked list for holding 32bit unicode codepoint data. */
 
 #include "bitmap.h"
-#include "oku_types"
+#include "oku_types.h"
 
 typedef struct CP_NODE {
     codepoint unicode;		/* 32bit unicode codepoint */
-    BITMAP rendering;		/* Rendered gylph bitmap */
+    BITMAP *rendering;		/* Rendered gylph bitmap */
     resolution advance;		/* Advance width in px */
     coordinate x, y;		/* Start pixel coordinates */
-    CP_NODE *next;		/* Next node in list */
+    struct CP_NODE *next;		/* Next node in list */
 } CP_NODE;
 
 typedef struct CP_QUEUE {
-    unsigned count;
-    struct CODEPOINT_NODE *head, *tail;
+    unsigned long count;
+    struct CP_NODE *head, *tail;
 } CP_QUEUE;
     
 /* Queue allocation and deallocation */
-int cpq_create(CP_QUEUE new_queue);
-int *cpq_destroy(CP_QUEUE *destroy);
+CP_QUEUE *cpq_create(void);
+int cpq_destroy(CP_QUEUE *cpq); /* deallocates queue and all nodes */
 
 /* Queue interface */
-int cpq_enqueue(CP_QUEUE *new, codepoint unicode);
-int cpq_peak(CP_NODE *out);
-int cpq_dequeue(CP_NODE *delete);
+int cpq_enqueue(CP_QUEUE *cpq, codepoint unicode); /* add a node */
+int cpq_dequeue(CP_QUEUE *cpq, CP_NODE **out);	   /* detach a node */
+int cpq_delete(CP_NODE *delete);		   /* free a node */

@@ -40,8 +40,9 @@
 #include "spi.h"		/* GPIO and SPI communication */
 #include "epd.h"		/* Device specific commands */
 #include "bitmap.h"		/* Bitmap manipulation */
-#include "text.h"		/* Font rendering */
-#include "oku_err.h"		/* Error codes */
+#include "cpqueue.h"		/* Unicode codepoint buffer queue */
+#include "utf8.h"		/* Decode UTF-8 into unicode codepoints */
+//#include "text.h"		/* Font rendering */
 #include "oku_types.h"		/* Type definitions */
 
 uint8_t binary_pattern[] = 
@@ -89,6 +90,13 @@ draw_binary_pattern(struct BITMAP *bmp)
     return err;
 }
 
+int
+cleanup(EPD *epd, BITMAP *bmp, CP_QUEUE *cpbuf)
+{
+    return epd_off(epd) || bitmap_destroy(bmp) || cpq_destroy(cpbuf)
+	|| epd_destroy(epd);
+}
+
 void
 die(int err, char *errstr)
 {
@@ -104,7 +112,7 @@ int main(int argc, char *argv[])
     /**** PROCESS ARGUEMENTS ****/
 
     if ( argc < 4 ) {
-	printf("%s <textfile> <fontsize> <fontpath>", argv[0]);
+	printf("%s <textfile> <fontsize> <fontpath>\n", argv[0]);
 	return ERR_INPUT;
     }
 
@@ -123,12 +131,15 @@ int main(int argc, char *argv[])
     
     /**** TEXT PROCESSING ****/
 
-    /* Create a textbox object and associate it to the device's bitmap
-       buffer to use the entire area of the device. */
-    TEXTBOX *txt = textbox_create(bmp, textpath, fontsize, fontpath);
-    
+    CP_QUEUE *cpbuf = cpq_create(); /* buffer for holding unicode */
+    codepoint unicode;
+    FILE *utf8 = fopen(textpath, "r");
 
-
+    while ( utf8_ftocp(utf8, &unicode) != ERR_IO ) {
+    	err = cpq_enqueue(cpbuf, unicode);
+    	if (err > 0)
+    	    die(err, "Enqueuing problem.");
+    }
 
     /**** DISPLAY AND SHUTDOWN ****/
 
@@ -138,8 +149,8 @@ int main(int argc, char *argv[])
 	die(err, "Failed to display bitmap");
 
     /* Clean up */
-    err = epd_off(epd) || bitmap_destroy(bmp) || epd_destroy(epd);
-    if (err > 0)
+    err = cleanup(epd, bmp, cpbuf);
+    if (err != 0)
 	log_warn("Clean up failed.");
 
     return err;
