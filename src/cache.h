@@ -1,4 +1,4 @@
-/* text.c
+/* cache.h
  * 
  * This file is part of oku.
  *
@@ -27,10 +27,33 @@
  * SOFTWARE.
  */
 
-/* Description:
+/***************/
+/* Description */
+/***************/
 
-*/
+#ifndef CACHE_H
+#define CACHE_H
+
+/* Character bitmap cache
+
+   A hash table to store rendered character glyph bitmaps. */
+
+#include "glyph.h"
+#include "oku_types.h"
+
+typedef struct CACHE CACHE;
+
+/* Allocates memory for, and returns a pointer to, a new glyph
+   cache. Returns NULL if the fontname is invalid or the fontsize is
+   zero. */
+CACHE *cache_create(char *fontname, unsigned fontsize);
+
+/* Destroy all memory associated with a glyph cahce */
+void cache_destroy(CACHE *delete);
+
+GLYPH *cache_search(CACHE *in, codepoint search);
+int cache_insert(CACHE *in, codepoint unicode, GLYPH *new);
+
+#endif	/* CACHE_H */
 
 
-int textbox_create(BITMAP *bmp, char *textpath,
-		   unsigned fontsize, char *fontpath)

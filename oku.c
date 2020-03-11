@@ -40,10 +40,14 @@
 #include "spi.h"		/* GPIO and SPI communication */
 #include "epd.h"		/* Device specific commands */
 #include "bitmap.h"		/* Bitmap manipulation */
-#include "cpqueue.h"		/* Unicode codepoint buffer queue */
 #include "utf8.h"		/* Decode UTF-8 into unicode codepoints */
-//#include "text.h"		/* Font rendering */
+#include "glyph.h"		/* Character glyph rendering */
+
 #include "oku_types.h"		/* Type definitions */
+
+#define UNIFILL 5000		/*  to fill codepoint buffer */
+
+EPD *epd = NULL;
 
 uint8_t binary_pattern[] = 
     { 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03,
@@ -91,16 +95,16 @@ draw_binary_pattern(struct BITMAP *bmp)
 }
 
 int
-cleanup(EPD *epd, BITMAP *bmp, CP_QUEUE *cpbuf)
+cleanup(EPD *epd, BITMAP *bmp)
 {
-    return epd_off(epd) || bitmap_destroy(bmp) || cpq_destroy(cpbuf)
-	|| epd_destroy(epd);
+    return epd_off(epd) || bitmap_destroy(bmp) || epd_destroy(epd);
 }
 
 void
 die(int err, char *errstr)
 {
     log_err("%s", errstr);
+    epd_off(epd);
     exit(err);
     return;
 }
@@ -121,8 +125,7 @@ int main(int argc, char *argv[])
     char *fontpath    = argv[3];
 
     /**** DEVICE INITIALISATION ****/
-
-    EPD *epd = epd_create();
+    epd = epd_create();
     err = epd_on(epd);
     if (err > 0)
 	die(err, "Failed to start device.");
@@ -131,32 +134,26 @@ int main(int argc, char *argv[])
     
     /**** TEXT PROCESSING ****/
 
-    CP_QUEUE *cpbuf = cpq_create(); /* buffer for holding unicode */
-    codepoint unicode;
-    FILE *utf8 = fopen(textpath, "r");
+    /* err = draw_lines(bmp); */
+    /* if (err > 0) */
+    /* 	die(err, "Failed to draw lines"); */
 
-    while ( utf8_ftocp(utf8, &unicode) != ERR_IO ) {
-    	err = cpq_enqueue(cpbuf, unicode);
-    	if (err > 0)
-    	    die(err, "Enqueuing problem.");
-    }
+    /* err = draw_binary_pattern(bmp); */
+    /* if (err > 0) */
+    /* 	die(err, "Failed to draw pattern"); */
 
     /**** DISPLAY AND SHUTDOWN ****/
-
-    /* Display bitmap on device */
     err = epd_display(epd, bmp->buffer, bmp->length);
     if (err > 0)
 	die(err, "Failed to display bitmap");
 
     /* Clean up */
-    err = cleanup(epd, bmp, cpbuf);
+    err = cleanup(epd, bmp);
     if (err != 0)
 	log_warn("Clean up failed.");
 
     return err;
 }
-
-
 
     /* Draw some features to the device bitmap */
 //    err = draw_lines(bmp) || draw_binary_pattern(bmp);

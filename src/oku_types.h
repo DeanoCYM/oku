@@ -76,11 +76,15 @@ enum OKU_ERRNO
      ERR_UNINITIALISED             = 0x05,
      ERR_PARTIAL_WRITE   	   = 0x06,
      ERR_BUSY                      = 0x07,
+     ERR_INVALID_UTF8              = 0x08,
+     ERR_NOT_FOUND                 = 0x08,
+     ERR_RENDER                    = 0x09,
+     ERR_INITIALISED               = 0x0A,
      /* Warnings (Negative) */
      WARN_ROOT                     = -0x01,
      WARN_REPLACEMENT_CHAR         = -0x02,
-     WARN_MTBUFFER                  = -0x03
-
+     WARN_MTBUFFER                 = -0x03,
+     WARN_EOF                      = -0x04
     };
 
 #endif	/* OKU_TYPES_H */

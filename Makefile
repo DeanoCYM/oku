@@ -13,13 +13,15 @@ INCLUDE= -I./src -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) $(INCLUDE)
 
 # CL Arguements
-TEXTFILE=./textfile.utf8
+TEXTFILE=./histories.utf8
 FONTSIZE=12
 FONTPATH=./DejaVuSans.ttf
 
 # Definition of target executable and libraries
 TARGET=oku
-OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o cpqueue.o utf8.o
+OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o utf8.o cache.o \
+glyph_${RENDER}.o
+
 
 .PHONY: all clean tags test sync emulate
 
@@ -39,7 +41,7 @@ clean:
 	rm -f display.pbm char.pbm
 	rm -f vgcore.*
 tags:
-	etags src/*.c src/*.h
+	etags src/*.c src/*.h oku.c
 
 test: clean all
 	valgrind ./$(TARGET) $(TEXTFILE) $(FONTSIZE) $(FONTPATH)

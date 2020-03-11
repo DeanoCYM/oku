@@ -1,4 +1,4 @@
-/* text.h
+/* glyph.h
  * 
  * This file is part of oku.
  *
@@ -27,28 +27,38 @@
  * SOFTWARE.
  */
 
-/* Description:
+/***************/
+/* Description */
+/***************/
 
-*/
+/* Glyph rendering interface. */
 
-#ifndef TEXT_H
-#define TEXT_H
+#ifndef GLYPH_H
+#define GLYPH_H
 
 #include "bitmap.h"
-#include "wordlist.h"
 #include "oku_types.h"
 
-struct TEXTBOX {
-    FILE *text, *font;		/* Font and text files */
-    unsigned fontsize;		/* Fontsize in pixels */
-    WORDLIST *textbuf;		/* Unicode buffer */
-    BITMAP *box;		/* Bitmap to render onto */
-    coordinate x, y;		/* Cursors */
-};
+typedef struct GLYPH {
+    BITMAP *bmp;		/* Rendered gylph bitmap */
+    resolution width;		/* Glyph width in px */
+    resolution advance;		/* Distance from origin to start of next glyph */
+    resolution baseline;	/* Distance from origin to baseline. */
+} GLYPH;
 
-int textbox_init(struct TEXTBOX *txt);
-int textbox_close(struct TEXTBOX *txt);
-int textbox_write(struct TEXTBOX *txt);
-int textbox_set_cursor(struct TEXTBOX *txt, coordinate x, coordinate y);
+/* Start and stop the rendering engine. Only one instance is permitted
+   at one time. */
+ int glyph_start_renderer(char *fontpath, unsigned fontsize);
+void glyph_stop_renderer(void);
 
-#endif	/* TEXT_H */
+/* Returns a pointer to a glyph object, which contains a rendered
+   character from provided unicode codepoint. */
+GLYPH *glyph(codepoint unicode);
+ void  glyph_delete(GLYPH *delete);
+
+/* Returns linespace in px */
+resolution glyph_linespace(void);
+
+
+#endif	/* GLYPH_H */
+
