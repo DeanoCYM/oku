@@ -13,7 +13,7 @@ INCLUDE= -I./src -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include
 CFLAGS= -Wall -Wextra -Wfatal-errors -g3 -O0 -DLOGLEVEL=$(LOGLEVEL) $(INCLUDE)
 
 # CL Arguements
-TEXTFILE=./histories.utf8
+TEXTFILE=./simple.utf8
 FONTSIZE=12
 FONTPATH=./DejaVuSans.ttf
 
