@@ -154,6 +154,9 @@ hash(codepoint unicode)
 static void
 ldelete_head(struct LIST *delete)
 {
+    if (nullptr(delete->head))
+	return;
+
     struct NODE *new_head = delete->head->next;
     ndelete(delete->head);
     delete->head = new_head;
