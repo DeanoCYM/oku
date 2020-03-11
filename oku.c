@@ -134,13 +134,13 @@ int main(int argc, char *argv[])
     
     /**** TEXT PROCESSING ****/
 
-    /* err = draw_lines(bmp); */
-    /* if (err > 0) */
-    /* 	die(err, "Failed to draw lines"); */
+    err = draw_lines(bmp);
+    if (err > 0)
+    	die(err, "Failed to draw lines");
 
-    /* err = draw_binary_pattern(bmp); */
-    /* if (err > 0) */
-    /* 	die(err, "Failed to draw pattern"); */
+    err = draw_binary_pattern(bmp);
+    if (err > 0)
+    	die(err, "Failed to draw pattern");
 
     /**** DISPLAY AND SHUTDOWN ****/
     err = epd_display(epd, bmp->buffer, bmp->length);
