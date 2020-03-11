@@ -171,7 +171,7 @@ ldelete_head(struct LIST *delete)
 static void
 ldestroy(struct LIST *delete)
 {
-    while (!nullptr(delete))	
+    while (!nullptr(delete->head))
 	ldelete_head(delete);
 
     return;

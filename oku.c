@@ -97,13 +97,14 @@ draw_binary_pattern(struct BITMAP *bmp)
 int
 cleanup(EPD *epd, BITMAP *bmp)
 {
-    return epd_off(epd) || bitmap_destroy(bmp) || epd_destroy(epd);
+    return epd_off(epd), bitmap_destroy(bmp), epd_destroy(epd);
 }
 
 void
 die(int err, char *errstr)
 {
     log_err("%s", errstr);
+    glyph_stop_renderer();
     epd_off(epd);
     exit(err);
     return;
@@ -120,9 +121,9 @@ int main(int argc, char *argv[])
 	return ERR_INPUT;
     }
 
-    char *textpath    = argv[1];
-    unsigned fontsize = atoi(argv[2]);
-    char *fontpath    = argv[3];
+    char     *textpath = argv[1];
+    unsigned  fontsize = atoi(argv[2]);
+    char     *fontpath = argv[3];
 
     /**** DEVICE INITIALISATION ****/
     epd = epd_create();
@@ -132,15 +133,32 @@ int main(int argc, char *argv[])
 
     BITMAP *bmp = bitmap_create(epd->width, epd->height);
     
+    /* err = draw_lines(bmp); */
+    /* if (err > 0) */
+    /* 	die(err, "Failed to draw lines"); */
+
+    /* err = draw_binary_pattern(bmp); */
+    /* if (err > 0) */
+    /* 	die(err, "Failed to draw pattern"); */
+
     /**** TEXT PROCESSING ****/
-
-    err = draw_lines(bmp);
+    err = glyph_start_renderer(fontpath, fontsize);
     if (err > 0)
-    	die(err, "Failed to draw lines");
+	die(err, "Failed to display bitmap");
 
-    err = draw_binary_pattern(bmp);
+    FILE *utf8 = fopen(textpath, "r");
+    if (utf8 == NULL)
+	die(err, "Failed to open textfile");
+    
+    codepoint cp = 0;
+    err = utf8_ftocp(utf8, &cp);
     if (err > 0)
-    	die(err, "Failed to draw pattern");
+	die(err, "Failed to read textfile");
+    
+    GLYPH *char1 = glyph(cp);
+    if (char1 == NULL)
+    	die(err, "Failed to render glyph");
+
 
     /**** DISPLAY AND SHUTDOWN ****/
     err = epd_display(epd, bmp->buffer, bmp->length);
@@ -149,8 +167,7 @@ int main(int argc, char *argv[])
 
     /* Clean up */
     err = cleanup(epd, bmp);
-    if (err != 0)
-	log_warn("Clean up failed.");
+
 
     return err;
 }
