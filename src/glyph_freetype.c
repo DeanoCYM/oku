@@ -218,11 +218,14 @@ glyph_from_cache(codepoint unicode)
     return cache_search(db, unicode);
 }
 
-/* Render a new glyph and return. Returns NULL on failure */
+/* Render a new glyph.
+
+   If there is an error rendering the glyph, return NULL. Otherwise
+   use the rendering to create a new glyph and return this. */
 static GLYPH *
 glyph_from_face(codepoint unicode)
 {
-    return render(unicode) ? create_glyph(unicode) : NULL;
+    return render(unicode) ? NULL : create_glyph(unicode);
 }
 
 static int
