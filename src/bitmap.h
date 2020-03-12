@@ -76,9 +76,7 @@ enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
 /* Function: bitmap_create()
 
    Initialise bitmap object using electronic paper device
-   dimensions. This does function does not allocate memory for the
-   bitmap buffer in bmp->buffer. This must be done manually by
-   allocating bmp->length bytes. */
+   dimensions. Allocating memory for object and buffer. */
 BITMAP *bitmap_create(resolution width, resolution height);
 
 /* Function: bitmap_modify()
