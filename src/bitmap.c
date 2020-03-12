@@ -369,8 +369,8 @@ static int
 check_bitmaps_fit(BITMAP *bmp, BITMAP *rectangle,
 		  coordinate x, coordinate y)
 {
-    return x + rectangle->width >= bmp->width
-	|| y + bitmap_height(rectangle) >= bitmap_height(bmp)
+    return x + rectangle->width         > bmp->width
+	|| y + bitmap_height(rectangle) > bitmap_height(bmp)
 	? ERR_INPUT : OK;
 }
 
