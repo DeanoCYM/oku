@@ -1,4 +1,4 @@
-/* glyph.c
+/* text.c
  * 
  * This file is part of oku.
  *
@@ -124,15 +124,13 @@ glyph_start_renderer(char *fontpath, unsigned fontsize)
 /* Returns a pointer to a rendered glyph object at the codepoint
    unicode.
 
-   First searches for a cached glyph, if codepoint is not in cache,
-   renders new glyph and stores it in the cache.
-
-   Returns NULL on error. */
+   First searches for a cached glyph, if this is not avaliable a new
+   glyph is generated. Returns NULL on failure */
 GLYPH *
 glyph(codepoint unicode)
 {
     GLYPH *new = glyph_from_cache(unicode);
-    return new == NULL ? glyph_from_face(unicode) : NULL;
+    return new ? new : glyph_from_face(unicode);
 }
 
 void
@@ -158,16 +156,16 @@ static GLYPH *
 create_glyph(codepoint unicode)
 {
     /* Compute dimensions of new glyph and create. */
-    GLYPH      *new   = oku_alloc(sizeof *new);
-    resolution width  = face->glyph->bitmap.width;
-    resolution height = face->glyph->bitmap.rows;
-    members    pitch  = face->glyph->bitmap.pitch;
-    members    length = pitch * height;
-    
-    new->bmp      = bitmap_create(width, height);
-    new->width    = face->glyph->metrics.width;
-    new->advance  = face->glyph->metrics.horiAdvance;
-    new->baseline = face->glyph->metrics.horiBearingY;
+    GLYPH *new    = oku_alloc(sizeof *new);
+    new->advance  = face->glyph->advance.x / 64;
+    new->baseline = face->glyph->bitmap_top;
+    new->width    = face->glyph->bitmap_left;
+    new->bmp      = bitmap_create(face->glyph->bitmap.width,
+				  face->glyph->bitmap.rows);
+
+    int err = bitmap_clear(new->bmp);
+    if (err > 0)
+	goto out;
 
     /* Bitmap object is manually created, rather than with
        bitmap_create(). This is so that a pointer to the FreeType
@@ -175,21 +173,17 @@ create_glyph(codepoint unicode)
        bitmap_copy(). */
     BITMAP tmp;
     tmp.buffer = face->glyph->bitmap.buffer;
-    tmp.width  = width;
-    tmp.pitch  = pitch;
-    tmp.length = length;
-
-    assert(tmp.length == new->bmp->length && tmp.pitch  == new->bmp->pitch);
+    tmp.pitch  = face->glyph->bitmap.pitch;
+    tmp.width  = face->glyph->bitmap.width;
+    tmp.length = tmp.pitch * face->glyph->bitmap.rows;
 
     /* Copy temporary bitmap into new glyph */
-    int err = bitmap_copy(new->bmp, &tmp, 0, 0);
+    err = bitmap_copy(new->bmp, &tmp, 0, 0);
     if (err > 0)
 	goto out;
 
     /* Insert into cache. */
-    cache_insert(db, unicode, new);
-    if (err > 0)
-	goto out;
+    err = cache_insert(db, unicode, new);
 
  out:
     return err > 0 ? NULL : new;

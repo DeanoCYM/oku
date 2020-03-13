@@ -1,4 +1,4 @@
-/* glyph.h
+/* text.h
  * 
  * This file is part of oku.
  *
