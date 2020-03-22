@@ -31,34 +31,31 @@
 /* Description */
 /***************/
 
-/* Glyph rendering interface. */
+/* Renders text to bitmap surface using unicode codepoints. */
 
 #ifndef GLYPH_H
 #define GLYPH_H
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_GLYPH_H
+
+#include "cache.h"
 #include "bitmap.h"
 #include "oku_types.h"
 
-typedef struct GLYPH {
-    BITMAP *bmp;		/* Rendered gylph bitmap */
-    resolution width;		/* Glyph width in px */
-    resolution advance;		/* Distance from origin to start of next glyph */
-    resolution baseline;	/* Distance from origin to baseline. */
-} GLYPH;
-
+typedef struct FT {
+    FT_Library  lib;
+    FT_Face     face;
+    /* CACHE      *db; */
+} FT;
+    
 /* Start and stop the rendering engine. Only one instance is permitted
    at one time. */
- int glyph_start_renderer(char *fontpath, unsigned fontsize);
-void glyph_stop_renderer(void);
+  FT *text_start(char *fontpath, unsigned fontsize);
+void  text_stop(FT *delete);
 
-/* Returns a pointer to a glyph object, which contains a rendered
-   character from provided unicode codepoint. */
-GLYPH *glyph(codepoint unicode);
- void  glyph_delete(GLYPH *delete);
-
-/* Returns linespace in px */
-resolution glyph_linespace(void);
-
+/* Turns a  */
 
 #endif	/* GLYPH_H */
 

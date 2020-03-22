@@ -19,8 +19,7 @@ FONTPATH=./DejaVuSans.ttf
 
 # Definition of target executable and libraries
 TARGET=oku
-OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o utf8.o cache.o \
-glyph_${RENDER}.o
+OBJ=oku_mem.o spi_${SPI_BACKEND}.o epd_${DEVICE}.o bitmap.o utf8.o text.o
 
 
 .PHONY: all clean tags test sync emulate

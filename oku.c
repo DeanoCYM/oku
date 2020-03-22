@@ -41,7 +41,7 @@
 #include "epd.h"		/* Device specific commands */
 #include "bitmap.h"		/* Bitmap manipulation */
 #include "utf8.h"		/* Decode UTF-8 into unicode codepoints */
-#include "glyph.h"		/* Character glyph rendering */
+#include "text.h"
 
 #include "oku_types.h"		/* Type definitions */
 
@@ -155,12 +155,7 @@ int main(int argc, char *argv[])
     if (err > 0)
 	die(err, "Failed to read textfile");
     
-    GLYPH *char1 = glyph(cp);
-    if (char1 == NULL)
-    	die(err, "Failed to render glyph");
-
-
-    /**** DISPLAY AND SHUTDOWN ****/
+x    /**** DISPLAY AND SHUTDOWN ****/
     err = epd_display(epd, bmp->buffer, bmp->length);
     if (err > 0)
 	die(err, "Failed to display bitmap");
