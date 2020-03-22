@@ -37,7 +37,7 @@
    Each row contains the same number of bits, packed 8 to a byte,
    don't care bits to fill out the last byte in the row if the width
    is not a factor of 8.
-
+o
    Each bit represents a pixel: 1 is black, 0 is white.
 
    The order of the pixels is left to right. The order of their
@@ -78,6 +78,13 @@ enum SET_PIXEL_MODE { SET_PIXEL_BLACK, SET_PIXEL_WHITE, SET_PIXEL_TOGGLE };
    Initialise bitmap object using electronic paper device
    dimensions. Allocating memory for object and buffer. */
 BITMAP *bitmap_create(resolution width, resolution height);
+
+/* Function: bitmap_assign()
+
+   Define a bitmap structure from existing values. Memory cotrolled by
+   caller, used for constructing FreeType bitmaps. */
+int bitmap_ft(members length, members pitch, resolution width,
+	      byte *buffer, BITMAP *out);
 
 /* Function: bitmap_modify()
 

@@ -52,6 +52,10 @@
 #include "oku_types.h"
 #include "oku_mem.h"
 
+/* Determine minimum bytes required to hold pixel width resolution
+   provided by W. */
+#define PITCH(W) ((unsigned)(W % 8 ? (W / 8) + 1 : W / 8))
+
 /************************/
 /* Forward Declarations */
 /************************/
@@ -95,7 +99,7 @@ bitmap_create(resolution width, resolution height)
 
     /* When the pixel count is not a factor of 8, a partially filled
        byte with 'don't care' bits is required. */
-    bmp->pitch  = width % 8 ? (width / 8) + 1 : width / 8;
+    bmp->pitch  = PITCH(width);
     bmp->length = bmp->pitch * height;
     bmp->width  = width;
 
@@ -103,6 +107,31 @@ bitmap_create(resolution width, resolution height)
     bmp->buffer = oku_arrayalloc(bmp->length, sizeof bmp->length);
 
     return bmp;
+}
+
+/* Function: bitmap_assign()
+
+   Populates an already allocated bitmap handle with the provided
+   parameters.
+*/
+int
+bitmap_ft(members length, members pitch, resolution width,
+	      byte *buffer, BITMAP *out)
+{
+    if (buffer == NULL)
+	return ERR_UNINITIALISED;
+
+    /* Ensure that provided pitch is capable of holding the specified
+       resolution across the width. */
+    if ( PITCH(width) > pitch )
+	return ERR_INPUT;
+
+    out->buffer = buffer;
+    out->length = length;
+    out->pitch  = pitch;
+    out->width  = width;
+
+    return OK;
 }
 
 /* Function: bitmap_modify()
