@@ -35,17 +35,17 @@
 
    A hash table to store rendered character glyph bitmaps. */
 
-#include "cache.h"
-#include "glyph.h"
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_GLYPH_H
 
+#include "cache.h"
 #include "oku_types.h"
 #include "oku_mem.h"
 
-#define TABLE_SIZE 255		/* Total number of Lists in table */
-
 struct NODE {
     codepoint unicode;
-    struct GLYPH *render;
+    GLYPH glyph;
     unsigned long hits;
     struct NODE *next;
 };
@@ -71,13 +71,13 @@ static byte hash (codepoint unicode);
 /* List */
 static  void  ldelete_head (struct LIST *delete);
 static  void  ldestroy     (struct LIST *delete);
-static   int  lenqueue     (struct LIST *in, codepoint unicode, GLYPH *new);
-static GLYPH *lsearch      (struct LIST *in, codepoint search);
+static   int  lenqueue     (struct LIST *in, codepoint unicode, GLYPH new);
+static GLYPH  lsearch      (struct LIST *in, codepoint search);
 
 /* Node */
-static struct NODE *ncreate (codepoint unicode, GLYPH *newglyph);
+static struct NODE *ncreate (codepoint unicode, GLYPH newglyph);
 static        void  ndelete (struct NODE *delete);
-static       GLYPH *nsearch (struct NODE *head, codepoint search);
+static       GLYPH  nsearch (struct NODE *head, codepoint search);
 
 /* Validation */
 static int nullptr(void *ptr);
@@ -123,14 +123,14 @@ cache_destroy(CACHE *delete)
 
    If the codepoint is not present in the table, or if the provided
    cache is NULL, NULL is returned. */
-GLYPH *
+GLYPH
 cache_search(CACHE *in, codepoint search)
 {
     return nullptr(in) ? NULL : lsearch(&in->table[hash(search)], search);
 }
 
 int
-cache_insert(CACHE *in, codepoint unicode, GLYPH *new)
+cache_insert(CACHE *in, codepoint unicode, GLYPH new)
 {
     return lenqueue(&in->table[hash(unicode)], unicode, new);
 }
@@ -179,7 +179,7 @@ ldestroy(struct LIST *delete)
 
 /* Insert a new node containing new glyph into the list. */
 static int
-lenqueue(struct LIST *in, codepoint unicode, GLYPH *new)
+lenqueue(struct LIST *in, codepoint unicode, GLYPH new)
 {
     struct NODE *newtail = ncreate(unicode, new);
     in->tail->next = newtail;
@@ -191,7 +191,7 @@ lenqueue(struct LIST *in, codepoint unicode, GLYPH *new)
 
    If found, returns a pointer to the glyph contained within matching
    node. Otherwise returns NULL.*/
-static GLYPH *
+static GLYPH
 lsearch(struct LIST *in, codepoint search)
 {
     return nsearch(in->head, search);
@@ -203,12 +203,12 @@ lsearch(struct LIST *in, codepoint search)
 
 /* Allocate memory and initialise new node */
 static struct NODE *
-ncreate(codepoint unicode, GLYPH *newglyph)
+ncreate(codepoint unicode, GLYPH newglyph)
 {
     struct NODE *newnode = oku_alloc(sizeof *newnode);
 
     newnode->unicode = unicode;
-    newnode->render  = newglyph;
+    newnode->glyph  = newglyph;
     newnode->hits    = 0;
     newnode->next    = NULL;
 
@@ -225,22 +225,21 @@ ndelete(struct NODE *delete)
     delete->unicode = 0;
     delete->hits = 0;
     delete->next = NULL;
+    FT_Done_Glyph(delete->glyph);
 
-    glyph_delete(delete->render);
-    
     return;
 }
 
 /* Move through the linked list checikng if search matches the unicode
    codepoint. If found, return a pointer to the nodes GLYPH character
-   object. Otherwise return NULL.  */
-static GLYPH *
+   object. Otherwise return NULL. Increments node hits on match. */
+static GLYPH
 nsearch(struct NODE *head, codepoint search)
 {
     while ( !nullptr(head) && !cpsame(head->unicode, search) )
 	head = head->next;
 
-    return nullptr(head) ? NULL : head->render;
+    return nullptr(head) ? NULL : (++head->hits, head->glyph);
 }
     
 /**************/

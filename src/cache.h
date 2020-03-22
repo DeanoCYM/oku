@@ -38,10 +38,16 @@
 
    A hash table to store rendered character glyph bitmaps. */
 
-#include "glyph.h"
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_GLYPH_H
+
 #include "oku_types.h"
 
+#define TABLE_SIZE 255		/* Total number of Lists in table */
+
 typedef struct CACHE CACHE;
+typedef FT_Glyph GLYPH;
 
 /* Allocates memory for, and returns a pointer to, a new glyph
    cache. Returns NULL if the fontname is invalid or the fontsize is
@@ -51,8 +57,8 @@ CACHE *cache_create(char *fontname, unsigned fontsize);
 /* Destroy all memory associated with a glyph cahce */
 void cache_destroy(CACHE *delete);
 
-GLYPH *cache_search(CACHE *in, codepoint search);
-int cache_insert(CACHE *in, codepoint unicode, GLYPH *new);
+GLYPH cache_search(CACHE *in, codepoint search);
+int   cache_insert(CACHE *in, codepoint unicode, GLYPH new);
 
 #endif	/* CACHE_H */
 
