@@ -33,29 +33,34 @@
 
 /* Renders text to bitmap surface using unicode codepoints. */
 
-#ifndef GLYPH_H
-#define GLYPH_H
+#ifndef TEXT_H
+#define TEXT_H
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 
-#include "cache.h"
-#include "bitmap.h"
 #include "oku_types.h"
 
-typedef struct FT {
-    FT_Library  lib;
-    FT_Face     face;
-    /* CACHE      *db; */
-} FT;
-    
-/* Start and stop the rendering engine. Only one instance is permitted
-   at one time. */
-  FT *text_start(char *fontpath, unsigned fontsize);
-void  text_stop(FT *delete);
+/* Node to cache a glyph  */
+typedef struct GLYPH {
+    unsigned      index;	/* FreeType glyph index */
+    unsigned long unicode;	/* Unicode codepoint */
+    FT_Glyph      glyph;	/* FreeType glyph */
+    FT_BBox       bbox;		/* Glyph bounding box */
+} GLYPH;
 
-/* Turns a  */
+typedef struct TEXT {
+    FT_Library lib;		/* FreeType library handle */
+    FT_Face    face;		/* Font face handle */
+    GLYPH      db[STRMAX];	/* Cache for storing glyphs */
+} TEXT;
 
-#endif	/* GLYPH_H */
+/* Initialise FreeType*/
+FT *text_start(char *font, unsigned size);
+
+
+
+
+#endif	/* TEXT_H */
 

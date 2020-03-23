@@ -37,47 +37,36 @@
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 
+/* #include <stdio.h>  */   // debugging to stdout
+/* #include <stdlib.h> */     
+
 #include "text.h"
+#include "bitmap.h"
 #include "oku_mem.h"
 #include "oku_types.h"
 
-/* Initialises FreeType library and sets the font face and size in
-   pixels and returns handle. On error uninitialises and returns
-   NULL. */
+/* Initialise FreeType library and return handle */
 FT *
-text_start(char *fontpath, unsigned fontsize)
+text_start(char *font, unsigned size)
 {
-    FT *ft = oku_alloc(sizeof *ft);
-    FT_Init_FreeType(&ft->lib);
-    FT_New_Face(ft->lib, fontpath, 0, &ft->face);
-    FT_Set_Pixel_Sizes(ft->face, 0, fontsize);
+    TEXT *new = oku_alloc(sizeof *new);
 
-    return ft;
+    int err =
+	FT_Init_FreeType(&new->lib)             ||
+	FT_New_Face(ft->lib, font, 0 &ft->face) ||
+	FT_Set_Pixel_Sizes(ft->face, 0, size);	
+
+    
+
+    return err ? ERR_RENDER : OK;
 }
 
-/* Free all allocated memory within FT handle. */
 void
 text_stop(FT *delete)
 {
+    FT_Done_Face(delete->face);
+    FT_Done_FreeType(delete->lib);
+
     return;
-}
-
-/* Copies glyph from slot into out. */
-static int
-cptoglyph(FT *ft, codepoint unicode, FT_Glyph *out)
-{
-    unsigned index = FT_Get_Char_Index(ft->face, codepoint);
-    FT_Load_Glyph(ft->face, index, FT_LOAD_DEFAULT);
-    FT_Get_Glyph(face->glyph, out);
-
-    return OK;
-}
-
-static int
-measure_glyph(FT_Glyph glyph, FT_BBox *bbox)
-{
-    FT_Glyph_Get_CBox(glyph, FT_GLYPH_BBOX_PIXELS, bbox);
-    
-    return OK;
 }
 
